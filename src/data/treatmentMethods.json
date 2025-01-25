@@ -1,0 +1,83 @@
+{
+    "categories": [
+      {
+        "id": 21,
+        "name": "지방성형",
+        "icon": "icon-지방성형",
+        "label": "지방성형",
+        "href": "/category/지방성형"
+      },
+      {
+        "id": 22,
+        "name": "필러/보톡스",
+        "icon": "icon-필러-보톡스",
+        "label": "필러/보톡스",
+        "href": "/category/필러-보톡스"
+      },
+      {
+        "id": 23,
+        "name": "lifting",
+        "icon": "icon-lifting",
+        "label": "lifting",
+        "href": "/category/lifting"
+      }
+    ],
+    "subCategories": [
+      {
+        "parentId": 21,
+        "id": 1,
+        "name": "흡입",
+        "label": "흡입",
+        "href": "/category/지방성형/흡입"
+      },
+      {
+        "parentId": 21,
+        "id": 2,
+        "name": "이식",
+        "label": "이식",
+        "href": "/category/지방성형/이식"
+      },
+      {
+        "parentId": 22,
+        "id": 3,
+        "name": "필러",
+        "label": "필러",
+        "href": "/category/필러-보톡스/필러"
+      },
+      {
+        "parentId": 22,
+        "id": 4,
+        "name": "보톡스",
+        "label": "보톡스",
+        "href": "/category/필러-보톡스/보톡스"
+      },
+      {
+        "parentId": 23,
+        "id": 5,
+        "name": "브이 리프팅",
+        "label": "브이 리프팅",
+        "href": "/category/lifting/브이-리프팅"
+      },
+      {
+        "parentId": 23,
+        "id": 6,
+        "name": "미세 실 리프팅",
+        "label": "미세 실 리프팅",
+        "href": "/category/lifting/미세-실-리프팅"
+      },
+      {
+        "parentId": 23,
+        "id": 7,
+        "name": "절개 리프팅",
+        "label": "절개 리프팅",
+        "href": "/category/lifting/절개-리프팅"
+      },
+      {
+        "parentId": 23,
+        "id": 8,
+        "name": "비절개 리프팅",
+        "label": "비절개 리프팅",
+        "href": "/category/lifting/비절개-리프팅"
+      }
+    ]
+  }

@@ -4,26 +4,23 @@ import Link from 'next/link'
 interface CategoryIconProps {
   icon: string
   label: string
-  href: string
+  href?: string
+  onClick?: () => void
+  isSelected?: boolean
 }
 
-export function CategoryIcon({ icon, label, href }: CategoryIconProps) {
+export function CategoryIcon({ icon, label, onClick, isSelected }: CategoryIconProps) {
   return (
-    <Link 
-      href={href} 
-      className="flex flex-col items-center gap-2 transition-transform hover:scale-[1.05]"
+    <div 
+      className="flex flex-col items-center gap-1 p-2 cursor-pointer hover:bg-gray-50 rounded-lg transition-colors"
+      onClick={onClick}
     >
-      <div className="w-12 h-12 rounded-full bg-surface-container flex items-center justify-center relative shadow-sm hover:shadow-base transition-shadow">
-        <Image
-          src={icon}
-          alt={label}
-          fill
-          sizes="48px"
-          className="p-2"
-          unoptimized
-        />
+      <div className={`w-12 h-12 flex items-center justify-center rounded-lg transition-all
+        ${isSelected ? 'ring-2 ring-primary bg-primary/5' : ''}`}
+      >
+        <img src={icon} alt={label} className="w-8 h-8" />
       </div>
-      <span className="text-sm text-muted-foreground">{label}</span>
-    </Link>
+      <span className="text-xs text-center">{label}</span>
+    </div>
   )
 } 

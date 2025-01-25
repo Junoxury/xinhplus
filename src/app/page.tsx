@@ -9,29 +9,11 @@ import { useRef, MouseEvent, useEffect, useState } from 'react'
 import { ChevronLeft, ChevronRight, Settings } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ShortCard } from '@/components/shorts/ShortCard'
+import bodyPartsData from '@/data/bodyParts.json'
+import treatmentMethodsData from '@/data/treatmentMethods.json'
 
- // Start of Selection
-const bodyParts = [
-  { icon: 'https://api.dicebear.com/7.x/icons/svg?seed=eye&backgroundColor=white', label: '눈', href: '/treatments/eye' },
-  { icon: 'https://api.dicebear.com/7.x/icons/svg?seed=nose&backgroundColor=white', label: '코', href: '/treatments/nose' },
-  { icon: 'https://api.dicebear.com/7.x/icons/svg?seed=face&backgroundColor=white', label: '얼굴윤곽', href: '/treatments/face' },
-  { icon: 'https://api.dicebear.com/7.x/icons/svg?seed=skin&backgroundColor=white', label: '피부', href: '/treatments/skin' },
-  { icon: 'https://api.dicebear.com/7.x/icons/svg?seed=body&backgroundColor=white', label: '체형', href: '/treatments/body' },
-  { icon: 'https://api.dicebear.com/7.x/icons/svg?seed=lip&backgroundColor=white', label: '입술', href: '/treatments/lip' },
-  { icon: 'https://api.dicebear.com/7.x/icons/svg?seed=cheek&backgroundColor=white', label: '볼', href: '/treatments/cheek' },
-  { icon: 'https://api.dicebear.com/7.x/icons/svg?seed=forehead&backgroundColor=white', label: '이마', href: '/treatments/forehead' },
-  { icon: 'https://api.dicebear.com/7.x/icons/svg?seed=chin&backgroundColor=white', label: '턱', href: '/treatments/chin' },
-  { icon: 'https://api.dicebear.com/7.x/icons/svg?seed=eyebrow&backgroundColor=white', label: '눈썹', href: '/treatments/eyebrow' },
-  { icon: 'https://api.dicebear.com/7.x/icons/svg?seed=ear&backgroundColor=white', label: '귀', href: '/treatments/ear' },
-  { icon: 'https://api.dicebear.com/7.x/icons/svg?seed=neck&backgroundColor=white', label: '목', href: '/treatments/neck' },
-]
-
-const treatmentMethods = [
-  { icon: 'https://api.dicebear.com/7.x/icons/svg?seed=dental&backgroundColor=white', label: '치아', href: '/treatments/dental' },
-  { icon: 'https://api.dicebear.com/7.x/icons/svg?seed=hair&backgroundColor=white', label: '모발이식', href: '/treatments/hair' },
-  { icon: 'https://api.dicebear.com/7.x/icons/svg?seed=anti&backgroundColor=white', label: '항노화', href: '/treatments/anti-aging' },
-  { icon: 'https://api.dicebear.com/7.x/icons/svg?seed=etc&backgroundColor=white', label: '기타', href: '/treatments/etc' },
-]
+const bodyParts = bodyPartsData.categories
+const treatmentMethods = treatmentMethodsData.categories
 
 const popularTreatments = [
   {

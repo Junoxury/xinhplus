@@ -1,0 +1,377 @@
+{
+    "categories": [
+      {
+        "id": 1,
+        "name": "코",
+        "icon": "icon-코",
+        "label": "코",
+        "href": "/category/코"
+      },
+      {
+        "id": 2,
+        "name": "가슴",
+        "icon": "icon-가슴",
+        "label": "가슴",
+        "href": "/category/가슴"
+      },
+      {
+        "id": 3,
+        "name": "눈",
+        "icon": "icon-눈",
+        "label": "눈",
+        "href": "/category/눈"
+      },
+      {
+        "id": 4,
+        "name": "입술",
+        "icon": "icon-입술",
+        "label": "입술",
+        "href": "/category/입술"
+      },
+      {
+        "id": 5,
+        "name": "피부",
+        "icon": "icon-피부",
+        "label": "피부",
+        "href": "/category/피부"
+      },
+      {
+        "id": 6,
+        "name": "얼굴",
+        "icon": "icon-얼굴",
+        "label": "얼굴",
+        "href": "/category/얼굴"
+      },
+      {
+        "id": 7,
+        "name": "광대",
+        "icon": "icon-광대",
+        "label": "광대",
+        "href": "/category/광대"
+      },
+      {
+        "id": 8,
+        "name": "치아",
+        "icon": "icon-치아",
+        "label": "치아",
+        "href": "/category/치아"
+      },
+      {
+        "id": 9,
+        "name": "바디",
+        "icon": "icon-바디",
+        "label": "바디",
+        "href": "/category/바디"
+      },
+      {
+        "id": 10,
+        "name": "제모",
+        "icon": "icon-제모",
+        "label": "제모",
+        "href": "/category/제모"
+      },
+      {
+        "id": 11,
+        "name": "여성전용",
+        "icon": "icon-여성전용",
+        "label": "여성전용",
+        "href": "/category/여성전용"
+      }
+    ],
+    "subCategories": [
+      {
+        "parentId": 1,
+        "id": 1,
+        "name": "코끝 성형",
+        "label": "코끝 성형",
+        "href": "/category/코/코끝-성형"
+      },
+      {
+        "parentId": 1,
+        "id": 2,
+        "name": "콧대 확대",
+        "label": "콧대 확대",
+        "href": "/category/코/콧대-확대"
+      },
+      {
+        "parentId": 1,
+        "id": 3,
+        "name": "메무리코 교정",
+        "label": "메무리코 교정",
+        "href": "/category/코/메무리코-교정"
+      },
+      {
+        "parentId": 1,
+        "id": 4,
+        "name": "들창코 교정",
+        "label": "들창코 교정",
+        "href": "/category/코/들창코-교정"
+      },
+      {
+        "parentId": 1,
+        "id": 5,
+        "name": "휘어진코 수술",
+        "label": "휘어진코 수술",
+        "href": "/category/코/휘어진코-수술"
+      },
+      {
+        "parentId": 1,
+        "id": 6,
+        "name": "콧볼 축소",
+        "label": "콧볼 축소",
+        "href": "/category/코/콧볼-축소"
+      },
+      {
+        "parentId": 1,
+        "id": 7,
+        "name": "재수술",
+        "label": "재수술",
+        "href": "/category/코/재수술"
+      },
+      {
+        "parentId": 2,
+        "id": 8,
+        "name": "가슴 리프팅",
+        "label": "가슴 리프팅",
+        "href": "/category/가슴/가슴-리프팅"
+      },
+      {
+        "parentId": 2,
+        "id": 9,
+        "name": "가슴 확대",
+        "label": "가슴 확대",
+        "href": "/category/가슴/가슴-확대"
+      },
+      {
+        "parentId": 2,
+        "id": 10,
+        "name": "가슴 축소",
+        "label": "가슴 축소",
+        "href": "/category/가슴/가슴-축소"
+      },
+      {
+        "parentId": 2,
+        "id": 11,
+        "name": "남성 가슴 축소",
+        "label": "남성 가슴 축소",
+        "href": "/category/가슴/남성-가슴-축소"
+      },
+      {
+        "parentId": 2,
+        "id": 12,
+        "name": "유두 수술",
+        "label": "유두 수술",
+        "href": "/category/가슴/유두-수술"
+      },
+      {
+        "parentId": 2,
+        "id": 13,
+        "name": "가슴 재건",
+        "label": "가슴 재건",
+        "href": "/category/가슴/가슴-재건"
+      },
+      {
+        "parentId": 2,
+        "id": 14,
+        "name": "가슴 재수술",
+        "label": "가슴 재수술",
+        "href": "/category/가슴/가슴-재수술"
+      },
+      {
+        "parentId": 3,
+        "id": 15,
+        "name": "쌍거풀 비절개",
+        "label": "쌍거풀 비절개",
+        "href": "/category/눈/쌍거풀-비절개"
+      },
+      {
+        "parentId": 3,
+        "id": 16,
+        "name": "쌍거풀 부분절개",
+        "label": "쌍거풀 부분절개",
+        "href": "/category/눈/쌍거풀-부분절개"
+      },
+      {
+        "parentId": 3,
+        "id": 17,
+        "name": "안검하수",
+        "label": "안검하수",
+        "href": "/category/눈/안검하수"
+      },
+      {
+        "parentId": 3,
+        "id": 18,
+        "name": "하안검 성형술",
+        "label": "하안검 성형술",
+        "href": "/category/눈/하안검-성형술"
+      },
+      {
+        "parentId": 3,
+        "id": 19,
+        "name": "눈가리개",
+        "label": "눈가리개",
+        "href": "/category/눈/눈가리개"
+      },
+      {
+        "parentId": 3,
+        "id": 20,
+        "name": "재수술",
+        "label": "재수술",
+        "href": "/category/눈/재수술"
+      },
+      {
+        "parentId": 4,
+        "id": 21,
+        "name": "입꼬리",
+        "label": "입꼬리",
+        "href": "/category/입술/입꼬리"
+      },
+      {
+        "parentId": 4,
+        "id": 22,
+        "name": "입 길이 연장",
+        "label": "입 길이 연장",
+        "href": "/category/입술/입-길이-연장"
+      },
+      {
+        "parentId": 5,
+        "id": 23,
+        "name": "anti-aging",
+        "label": "anti-aging",
+        "href": "/category/피부/anti-aging"
+      },
+      {
+        "parentId": 5,
+        "id": 24,
+        "name": "모공",
+        "label": "모공",
+        "href": "/category/피부/모공"
+      },
+      {
+        "parentId": 5,
+        "id": 25,
+        "name": "흉터",
+        "label": "흉터",
+        "href": "/category/피부/흉터"
+      },
+      {
+        "parentId": 6,
+        "id": 26,
+        "name": "사각턱 윤곽",
+        "label": "사각턱 윤곽",
+        "href": "/category/얼굴/사각턱-윤곽"
+      },
+      {
+        "parentId": 6,
+        "id": 27,
+        "name": "턱 윤곽",
+        "label": "턱 윤곽",
+        "href": "/category/얼굴/턱-윤곽"
+      },
+      {
+        "parentId": 6,
+        "id": 28,
+        "name": "이마 윤곽",
+        "label": "이마 윤곽",
+        "href": "/category/얼굴/이마-윤곽"
+      },
+      {
+        "parentId": 7,
+        "id": 29,
+        "name": "광대 윤곽",
+        "label": "광대 윤곽",
+        "href": "/category/광대/광대-윤곽"
+      },
+      {
+        "parentId": 8,
+        "id": 30,
+        "name": "치아 미백 또는 블리칭",
+        "label": "치아 미백 또는 블리칭",
+        "href": "/category/치아/치아-미백-또는-블리칭"
+      },
+      {
+        "parentId": 8,
+        "id": 31,
+        "name": "루미니어",
+        "label": "루미니어",
+        "href": "/category/치아/루미니어"
+      },
+      {
+        "parentId": 8,
+        "id": 32,
+        "name": "치아 임플란트 및 브리지",
+        "label": "치아 임플란트 및 브리지",
+        "href": "/category/치아/치아-임플란트-및-브리지"
+      },
+      {
+        "parentId": 8,
+        "id": 33,
+        "name": "모발이식",
+        "label": "모발이식",
+        "href": "/category/치아/모발이식"
+      },
+      {
+        "parentId": 9,
+        "id": 34,
+        "name": "지방흡입",
+        "label": "지방흡입",
+        "href": "/category/바디/지방흡입"
+      },
+      {
+        "parentId": 9,
+        "id": 35,
+        "name": "복부성형술",
+        "label": "복부성형술",
+        "href": "/category/바디/복부성형술"
+      },
+      {
+        "parentId": 9,
+        "id": 36,
+        "name": "힙업수술",
+        "label": "힙업수술",
+        "href": "/category/바디/힙업수술"
+      },
+      {
+        "parentId": 10,
+        "id": 37,
+        "name": "속눈썹",
+        "label": "속눈썹",
+        "href": "/category/제모/속눈썹"
+      },
+      {
+        "parentId": 10,
+        "id": 38,
+        "name": "수염",
+        "label": "수염",
+        "href": "/category/제모/수염"
+      },
+      {
+        "parentId": 10,
+        "id": 39,
+        "name": "겨드랑이",
+        "label": "겨드랑이",
+        "href": "/category/제모/겨드랑이"
+      },
+      {
+        "parentId": 10,
+        "id": 40,
+        "name": "기타",
+        "label": "기타",
+        "href": "/category/제모/기타"
+      },
+      {
+        "parentId": 11,
+        "id": 41,
+        "name": "질 성형수술",
+        "label": "질 성형수술",
+        "href": "/category/여성전용/질-성형수술"
+      },
+      {
+        "parentId": 11,
+        "id": 42,
+        "name": "소음순 성형술",
+        "label": "소음순 성형술",
+        "href": "/category/여성전용/소음순-성형술"
+      }
+    ]
+  }
