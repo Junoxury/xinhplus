@@ -95,20 +95,20 @@ const popularTreatments = [
 const featuredClinics = [
   {
     id: '1',
-    name: 'DR.AD BEAUTY CLINIC',
+    title: 'DR.AD BEAUTY CLINIC',
     image: 'https://web.babitalk.com/_next/image?url=https%3A%2F%2Fimages.babitalk.com%2Fimages%2F38d62b3c8d715e4091438b05bf7cd223%2Fbanner_img_1718961017.jpg&w=384&q=75',
     description: '20년 전통의 성형외과 전문의',
     location: 'Hanoi',
     rating: 4.8,
     reviewCount: 1234,
-    categories: ['Pore', 'Bottom eyelid', 'Eyelid surgery', 'Eyelid surgery', 'Eyelid surgery', '+8'],
+    categories: ['Pore', 'Bottom eyelid', 'Eyelid surgery', '+8'],
     isRecommended: true,
     isAd: true,
     isMember: true
   },
   {
     id: '2',
-    name: '뷰티라인 성형외과',
+    title: '뷰티라인 성형외과',
     image: 'https://web.babitalk.com/_next/image?url=https%3A%2F%2Fimages.babitalk.com%2Fimages%2Fd92aac925140c6a03aa0099e80362f55%2Fbanner_img_1736901184.jpg&w=384&q=75',
     description: '자연스러운 라인 교정 전문',
     location: 'Hanoi',
@@ -120,7 +120,7 @@ const featuredClinics = [
   },
   {
     id: '3',
-    name: '미소성형외과',
+    title: '미소성형외과',
     image: 'https://web.babitalk.com/_next/image?url=https%3A%2F%2Fimages.babitalk.com%2Fimages%2F25aacb6c5c5ffe729af9b47b4f2b0773%2Fbanner_img_1732092008.jpg&w=384&q=75',
     description: '맞춤형 성형 디자인',
     location: 'Ho Chi Minh',
@@ -131,7 +131,7 @@ const featuredClinics = [
   },
   {
     id: '4',
-    name: '라인성형외과',
+    title: '라인성형외과',
     image: 'https://web.babitalk.com/_next/image?url=https%3A%2F%2Fimages.babitalk.com%2Fimages%2Fc72d8a826738d4b27a88c53797c3e6a4%2Fbanner_img_1720688591.jpg&w=384&q=75',
     description: '최신 장비 보유 전문의',
     location: 'Da Nang',
@@ -142,7 +142,7 @@ const featuredClinics = [
   },
   {
     id: '5',
-    name: '뷰티클리닉',
+    title: '뷰티클리닉',
     image: 'https://web.babitalk.com/_next/image?url=https%3A%2F%2Fimages.babitalk.com%2Fimages%2F68f2c0df4eed8ca4376ffc27f879d925%2Fbanner_img_1732681027.jpg&w=384&q=75',
     description: '최신 장비 보유 전문의',
     location: 'Hanoi',

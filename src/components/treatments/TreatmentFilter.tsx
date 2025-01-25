@@ -8,6 +8,7 @@ interface FilterProps {
   onFilterChange: (filters: any) => void;
   onClose?: () => void;
   isMobile?: boolean;
+  showPriceFilter?: boolean;
 }
 
 interface CheckOption {
@@ -33,7 +34,12 @@ const formatPrice = (value: number) => {
   return `${(value / 1000000).toFixed(0)}M`
 }
 
-export function TreatmentFilter({ onFilterChange, onClose, isMobile = false }: FilterProps) {
+export function TreatmentFilter({ 
+  onFilterChange, 
+  onClose, 
+  isMobile = false,
+  showPriceFilter = true
+}: FilterProps) {
   const [priceRange, setPriceRange] = useState([0, 100000000])
   const [selectedLocations, setSelectedLocations] = useState<string[]>([])
   const [selectedOptions, setSelectedOptions] = useState<string[]>([])
@@ -130,22 +136,24 @@ export function TreatmentFilter({ onFilterChange, onClose, isMobile = false }: F
             </div>
           </div>
 
-          {/* 가격 범위 필터 */}
-          <div>
-            <h4 className="text-sm font-medium mb-4">가격 범위</h4>
-            <Slider
-              defaultValue={priceRange}
-              max={100000000}
-              step={1000000}
-              value={priceRange}
-              onValueChange={handlePriceChange}
-              className="mb-2"
-            />
-            <div className="flex justify-between text-sm text-gray-600">
-              <span>{formatPrice(priceRange[0])}</span>
-              <span>{formatPrice(priceRange[1])}</span>
+          {/* 가격 범위 필터 - 조건부 렌더링 */}
+          {showPriceFilter && (
+            <div>
+              <h4 className="text-sm font-medium mb-4">가격 범위</h4>
+              <Slider
+                defaultValue={priceRange}
+                max={100000000}
+                step={1000000}
+                value={priceRange}
+                onValueChange={handlePriceChange}
+                className="mb-2"
+              />
+              <div className="flex justify-between text-sm text-gray-600">
+                <span>{formatPrice(priceRange[0])}</span>
+                <span>{formatPrice(priceRange[1])}</span>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* 지역 필터 */}
           <div>
