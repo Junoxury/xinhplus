@@ -20,7 +20,7 @@ export default function EventsPage() {
         {/* 메인 이미지 */}
         <div className="relative w-full h-[400px] rounded-xl overflow-hidden mb-12">
           <Image
-            src="/images/events/surgery-promotion.jpg"
+            src="https://image2.gnsister.com/images/direct/1717140190657_8e4916836c3447edadd9f63fbfc94357.jpg?f=webp"
             alt="성형 수술 프로모션"
             fill
             className="object-cover"
