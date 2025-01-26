@@ -21,7 +21,7 @@ export function Header() {
   }
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-outline/10 bg-surface-container-lowest/80 backdrop-blur-md">
+    <header className="sticky top-0 z-[9999] w-full border-b border-outline/10 bg-surface-container-lowest/80 backdrop-blur-md">
       <div className="container mx-auto flex items-center justify-between h-16">
         {/* 로고 */}
         <div className="w-[140px]">
