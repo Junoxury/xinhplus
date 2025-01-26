@@ -28,6 +28,18 @@ const nextConfig = {
         port: '',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'image2.gnsister.com',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'developers.google.com',
+        port: '',
+        pathname: '/**',
+      },
     ],
   },
 }

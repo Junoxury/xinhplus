@@ -9,7 +9,7 @@ import bodyPartsData from '@/data/bodyParts.json'
 import treatmentMethodsData from '@/data/treatmentMethods.json'
 import { CategorySection } from '@/components/treatments/CategorySection'
 import Image from 'next/image'
-import { Share2, Heart, Home, Facebook, Phone, MessageCircle } from 'lucide-react'
+import { Share2, Heart, Home, Facebook, Phone, MessageCircle, Mail } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { ChevronDown, ChevronRight, ChevronLeft } from 'lucide-react'
@@ -476,13 +476,17 @@ export default function TreatmentDetailPage() {
     <main className="min-h-screen bg-gray-50 pb-[72px] md:pb-[88px]">
       <TreatmentBanner />
       <div className="container mx-auto px-4 py-8 space-y-8">
+        <h1 className="text-2xl md:text-3xl font-bold">
+          병원/클리닉 소개
+        </h1>
+
         <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
           <div className="flex flex-col md:flex-row">
             {/* 좌측 이미지 - 2:1 비율 */}
             <div className="md:w-1/3 relative">
               <div className="aspect-[2/1]">
                 <Image
-                  src="https://images.babitalk.com/images/89de9f71c6e88351e0f8f02db5cad770/banner_img_1724718171.jpg"
+                  src="https://image2.gnsister.com/images/hospital/1536217469595_aead56e583de44768d91de350cd464ad.jpg?f=webp"
                   alt="Treatment"
                   fill
                   className="object-cover"
@@ -518,7 +522,7 @@ export default function TreatmentDetailPage() {
               </div>
 
               {/* 제목 */}
-              <h1 className="text-2xl font-bold mb-4">리프팅, 초강력 미친 리프팅!!!!!</h1>
+              <h1 className="text-2xl font-bold mb-4">뷰티라이프 성형외과</h1>
 
               {/* 위치, 평점 */}
               <div className="flex items-center gap-2 text-gray-600 mb-4">
@@ -533,34 +537,26 @@ export default function TreatmentDetailPage() {
               {/* 요약 설명 */}
               <div className="mb-6 text-gray-600">
                 <p className="leading-relaxed">
-                  초강력 리프팅으로 확실한 V라인을 만들어드립니다. 
-                  특허받은 듀얼 리프팅 실을 사용하여 피부 처짐을 개선하고, 
-                  자연스러운 얼굴 윤곽을 만들어드립니다. 
-                  시술 시간은 30분 내외로 빠른 일상 복귀가 가능합니다.
+                  20년 전통의 뷰티라이프 성형외과입니다.
+                  풍부한 임상경험과 노하우를 바탕으로 고객님께 최상의 결과를 약속드립니다.
+                  대한성형외과학회 정회원 의료진이 직접 상담부터 수술, 사후관리까지 책임지고 진행합니다.
                 </p>
-                
               </div>
 
               {/* 카테고리 태그 */}
-              <div className="flex flex-wrap gap-2 mb-8">
+              <div className="flex flex-wrap gap-2">
                 <span className="px-3 py-1.5 bg-pink-500 text-white rounded-full text-sm">
-                  Nâng cơ
+                  성형외과
                 </span>
                 <span className="px-3 py-1.5 bg-pink-100 text-pink-500 rounded-full text-sm">
-                  Nâng cơ V-line
+                  눈성형
                 </span>
                 <span className="px-3 py-1.5 bg-pink-100 text-pink-500 rounded-full text-sm">
-                  Nâng cơ bằng chỉ siêu mảnh
+                  코성형
                 </span>
-              </div>
-
-              {/* 가격 정보 */}
-              <div className="flex items-baseline justify-end gap-4">
-                <div className="flex items-center gap-2">
-                  <span className="text-red-500 font-bold text-xl">50%</span>
-                  <span className="text-gray-400 line-through">24,000,000 VND</span>
-                </div>
-                <span className="text-black text-3xl font-bold">12,000,000 VND</span>
+                <span className="px-3 py-1.5 bg-pink-100 text-pink-500 rounded-full text-sm">
+                  안면윤곽
+                </span>
               </div>
             </div>
           </div>
@@ -575,7 +571,7 @@ export default function TreatmentDetailPage() {
                 className={`flex-1 text-center py-4 cursor-pointer border-r border-gray-300 hover:bg-blue-600 transition-colors
                   ${activeTab === 'detail-section' ? 'bg-blue-500 text-white' : 'text-gray-800 hover:bg-gray-100'}`}
               >
-                상세설명
+                병원정보
               </div>
               <div 
                 onClick={() => scrollToSection('review-section')}
@@ -589,7 +585,93 @@ export default function TreatmentDetailPage() {
                 className={`flex-1 text-center py-4 cursor-pointer hover:bg-blue-600 transition-colors
                   ${activeTab === 'similar-section' ? 'bg-blue-500 text-white' : 'text-gray-800 hover:bg-gray-100'}`}
               >
-                같은 종류 시술
+                병원의 다른 시술
+              </div>
+            </div>
+          </div>
+        </div>
+        {/* 병원 상세 정보 및 지도 섹션 */}
+        <div className="bg-white rounded-2xl shadow-sm overflow-hidden p-6">
+          <div className="flex flex-col md:flex-row gap-6">
+            {/* 좌측: 병원 상세 정보 */}
+            <div className="md:w-1/2 space-y-6">
+              <div>
+                <h3 className="text-lg font-bold mb-3">진료 시간</h3>
+                <div className="space-y-2 text-gray-600">
+                  <div className="flex justify-between">
+                    <span>평일</span>
+                    <span>10:00 - 19:00</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>토요일</span>
+                    <span>10:00 - 16:00</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>일요일/공휴일</span>
+                    <span className="text-red-500">휴진</span>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-bold mb-3">주소</h3>
+                <p className="text-gray-600">
+                  하노이시 호안끼엠 구 항박 거리 123번지 뷰티타워 8층
+                </p>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-bold mb-3">연락처</h3>
+                <div className="space-y-2 text-gray-600">
+                  <div className="flex items-center gap-2">
+                    <Phone className="w-4 h-4" />
+                    <span>+84-123-456-789</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Mail className="w-4 h-4" />
+                    <span>info@beautylife.com</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Image
+                      src="/images/zalo.svg"
+                      width={16}
+                      height={16}
+                      alt="Zalo"
+                      className="w-4 h-4"
+                    />
+                    <span>Zalo: beautylife</span>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-bold mb-3">온라인 채널</h3>
+                <div className="space-y-2 text-gray-600">
+                  <div className="flex items-center gap-2">
+                    <Home className="w-4 h-4" />
+                    <Link href="https://www.beautylife.com" target="_blank" className="hover:text-blue-500">
+                      www.beautylife.com
+                    </Link>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Facebook className="w-4 h-4" />
+                    <Link href="https://www.facebook.com/beautylife" target="_blank" className="hover:text-blue-500">
+                      facebook.com/beautylife
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 우측: 구글 지도 */}
+            <div className="md:w-1/2">
+              <div className="aspect-square relative rounded-lg overflow-hidden">
+                <Image
+                  src="https://developers.google.com/static/maps/images/landing/hero_maps_static_api.png"
+                  alt="Google Map"
+                  fill
+                  className="object-cover"
+                />
               </div>
             </div>
           </div>
@@ -626,7 +708,7 @@ export default function TreatmentDetailPage() {
 
             {/* 우측 관련 시술 카드 */}
             <div className="md:w-1/3 p-6 border-l">
-              <h2 className="text-lg font-bold mb-4">병원의 다른 시술</h2>
+              <h2 className="text-lg font-bold mb-4">대표 시술</h2>
               <div className="space-y-4">
                 {treatments.slice(0, 3).map((treatment) => (
                   <div
@@ -690,7 +772,7 @@ export default function TreatmentDetailPage() {
         {/* 인기 시술 섹션 */}
         <div id="similar-section" className="bg-white rounded-2xl shadow-sm overflow-hidden p-6 scroll-mt-[112px]">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold">같은 종류 시술</h2>
+            <h2 className="text-2xl font-bold">뷰티라이프 성형외과의 다른 시술</h2>
             <Button variant="ghost" className="text-sm text-muted-foreground h-8 gap-1" asChild>
               <Link href="/treatments">
                 전체보기
@@ -754,12 +836,6 @@ export default function TreatmentDetailPage() {
       {/* 하단 고정 버튼 */}
       <div className="fixed bottom-[56px] md:bottom-0 left-0 right-0 bg-white border-t z-[100] safe-area-bottom">
         <div className="container mx-auto px-4 py-3 flex gap-2">
-          <Link 
-            href="#" 
-            className="flex-1 px-4 py-3 bg-pink-500 text-white rounded-lg text-center font-medium hover:bg-pink-600 transition-colors text-sm md:text-base"
-          >
-            병원 바로가기
-          </Link>
           <Link 
             href="#" 
             className="flex-1 px-4 py-3 bg-violet-500 text-white rounded-lg text-center font-medium hover:bg-violet-600 transition-colors text-sm md:text-base"
