@@ -1,4 +1,4 @@
-import { PlayCircle } from 'lucide-react'
+import { PlayCircle, MapPin } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 
 interface ShortCardProps {
@@ -18,35 +18,41 @@ export function ShortCard({
   categories
 }: ShortCardProps) {
   return (
-    <div className="group relative rounded-lg overflow-hidden">
-      {/* 이미지 컨테이너 */}
-      <div className="relative aspect-[3/4] overflow-hidden">
-        <div className="absolute inset-0 bg-black/20 group-hover:bg-black/30 transition-colors z-10" />
-        <PlayCircle className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 text-white z-20 opacity-80 group-hover:opacity-100 transition-opacity" />
-        <img
-          src={image}
-          alt={title}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-        />
-      </div>
+    <div className="group relative aspect-[3/4] rounded-xl overflow-hidden">
+      {/* 배경 이미지 */}
+      <img
+        src={image}
+        alt={title}
+        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+      />
 
-      {/* 컨텐츠 - 제목 크기 조정 */}
-      <div className="p-3 space-y-2">
-        <h3 className="text-sm font-medium line-clamp-2">{title}</h3>
-        <p className="text-sm text-muted-foreground">
-          {location} - {clinic}
-        </p>
-        <div className="flex flex-wrap gap-1">
-          {categories.slice(0, 3).map((category) => (
-            <Badge key={category} variant="secondary" className="text-xs">
+      {/* 오버레이 그라데이션 */}
+      <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-black/30 to-black/80" />
+
+      {/* 재생 아이콘 */}
+      <PlayCircle className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 text-white z-20 opacity-80 group-hover:opacity-100 transition-opacity" />
+
+      {/* 컨텐츠 영역 */}
+      <div className="absolute bottom-0 left-0 right-0 p-4 text-white">
+        {/* 제목 */}
+        <h3 className="text-base font-medium line-clamp-2 mb-2">{title}</h3>
+
+        {/* 위치 & 병원 */}
+        <div className="flex items-center gap-1 text-sm mb-2 text-white/90">
+          <MapPin className="w-4 h-4" />
+          <span>{location} - {clinic}</span>
+        </div>
+
+        {/* 카테고리 */}
+        <div className="flex gap-1">
+          {categories.slice(0, 2).map((category) => (
+            <Badge 
+              key={category} 
+              className="bg-white/20 hover:bg-white/30 text-white border-0 text-xs"
+            >
               {category}
             </Badge>
           ))}
-          {categories.length > 3 && (
-            <Badge variant="secondary" className="text-xs">
-              +{categories.length - 3}
-            </Badge>
-          )}
         </div>
       </div>
     </div>
