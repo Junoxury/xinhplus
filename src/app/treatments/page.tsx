@@ -270,18 +270,21 @@ export default function TreatmentPage() {
         />
 
         {/* PC 버전 */}
-        <div className="hidden md:flex gap-6">
+        <div className="hidden md:flex gap-6 mt-8">
           <div className="w-1/3">
             <TreatmentFilter onFilterChange={setFilters} />
           </div>
-          <TreatmentList 
-            treatments={currentTreatments}
-            totalCount={treatments.length}
-            loading={loading}
-            hasMore={hasMore}
-            onLoadMore={handleLoadMore}
-            className="w-2/3"
-          />
+          <div className="w-2/3">
+            <TreatmentList 
+              treatments={currentTreatments}
+              totalCount={treatments.length}
+              loading={loading}
+              hasMore={hasMore}
+              onLoadMore={handleLoadMore}
+              className="w-full"
+              onFilterClick={() => toggleMobileFilter(true)}
+            />
+          </div>
         </div>
 
         {/* 모바일 버전 */}

@@ -21,6 +21,9 @@ export function Header() {
           <Link href="/treatments" className="text-muted-foreground hover:text-primary transition-colors">
             시술정보
           </Link>
+          <Link href="/shortvideo" className="text-muted-foreground hover:text-primary transition-colors">
+            X-Video
+          </Link>
           <Link href="/clinics" className="text-muted-foreground hover:text-primary transition-colors">
             병원찾기
           </Link>

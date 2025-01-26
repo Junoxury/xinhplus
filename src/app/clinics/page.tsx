@@ -257,7 +257,7 @@ export default function ClinicPage() {
         />
 
         {/* PC 버전 */}
-        <div className="hidden md:flex gap-6">
+        <div className="hidden md:flex gap-6 mt-8">
           <div className="w-1/4">
             <TreatmentFilter 
               onFilterChange={setFilters} 
