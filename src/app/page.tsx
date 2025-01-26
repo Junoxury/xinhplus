@@ -167,7 +167,9 @@ const recentReviews = [
     additionalImagesCount: 4,
     isLocked: true,
     location: '강남구',
-    clinicName: '뷰티클리닉'
+    clinicName: '뷰티클리닉',
+    commentCount: 10,
+    viewCount: 1234
   },
   {
     id: '2',
@@ -181,7 +183,9 @@ const recentReviews = [
     categories: ['Eyelid surgery', 'Bottom eyelid'],
     additionalImagesCount: 2,
     location: '강남구',
-    clinicName: '뷰티클리닉'
+    clinicName: '뷰티클리닉',
+    commentCount: 5,
+    viewCount: 856
   },
   {
     id: '3',
@@ -196,7 +200,9 @@ const recentReviews = [
     additionalImagesCount: 3,
     isLocked: true,
     location: '강남구',
-    clinicName: '뷰티클리닉'
+    clinicName: '뷰티클리닉',
+    commentCount: 7,
+    viewCount: 2431
   }
 ]
 

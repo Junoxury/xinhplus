@@ -32,7 +32,7 @@
         "id": 5,
         "name": "피부",
         "icon": "icon-피부",
-        "label": "피부",
+    "label": "피부", 
         "href": "/category/피부"
       },
       {

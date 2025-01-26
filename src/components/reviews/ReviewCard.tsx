@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import Image from 'next/image'
-import { Star, Lock, ChevronDown, ChevronUp, MapPin } from 'lucide-react'
+import { Star, Lock, MapPin, MessageCircle, Eye } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 
 interface ReviewCardProps {
   beforeImage: string
@@ -11,12 +12,15 @@ interface ReviewCardProps {
   rating: number
   content: string
   author: string
+  authorImage?: string
   date: string
   treatmentName: string
   categories: string[]
-  isLocked?: boolean
+  isAuthenticated?: boolean
   location: string
   clinicName: string
+  commentCount: number
+  viewCount: number
 }
 
 export function ReviewCard({
@@ -26,23 +30,20 @@ export function ReviewCard({
   rating,
   content,
   author,
+  authorImage,
   date,
   treatmentName,
   categories = [],
-  isLocked = false,
+  isAuthenticated = false,
   location,
-  clinicName
+  clinicName,
+  commentCount = 0,
+  viewCount = 0
 }: ReviewCardProps) {
-  const [isExpanded, setIsExpanded] = useState(false)
-  const maxLength = 200 // 내용 표시 최대 길이
-
-  const shouldShowMoreButton = content.length > maxLength
-  const displayContent = isExpanded ? content : content.slice(0, maxLength) + '...'
-
   return (
     <div className="rounded-2xl overflow-hidden bg-white shadow-lg">
       {/* 이미지 갤러리 */}
-      <div className="relative flex h-[300px]">
+      <div className="relative flex h-[200px] md:h-[240px]">
         {/* After 이미지 */}
         <div className="relative w-1/2">
           <Image
@@ -58,35 +59,51 @@ export function ReviewCard({
         
         {/* Before 이미지 */}
         <div className="relative w-1/2">
-          <Image
-            src={beforeImage}
-            alt="Before"
-            fill
-            className="object-cover"
-          />
-          <div className="absolute top-2 right-2 bg-black/80 text-white text-xs px-3 py-1 rounded-full backdrop-blur-[4px] z-[100]">
+          <div className="relative w-full h-full">
+            <Image
+              src={beforeImage}
+              alt="Before"
+              fill
+              className="object-cover"
+            />
+          </div>
+          
+          {/* Before 라벨과 추가 이미지 수는 항상 표시 */}
+          <div className="absolute top-2 right-2 bg-black/80 text-white text-xs px-3 py-1 rounded-full backdrop-blur-[4px] z-[110]">
             Before
           </div>
           {additionalImagesCount > 0 && (
-            <div className="absolute top-2 left-2 bg-black/80 text-white text-xs px-3 py-1 rounded-full backdrop-blur-[4px] z-[100]">
+            <div className="absolute top-2 left-2 bg-black/80 text-white text-xs px-3 py-1 rounded-full backdrop-blur-[4px] z-[110]">
               +{additionalImagesCount}
             </div>
           )}
-          {isLocked && (
-            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center text-white z-[90]">
-              <Lock className="w-6 h-6 mb-2" />
-              <span>Sign-in</span>
+
+          {/* 로그인하지 않은 경우 Sign-in 오버레이로 부분적으로 가림 */}
+          {!isAuthenticated && (
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center z-[105]">
+              <div className="text-center bg-black/40 px-6 py-4 rounded-xl backdrop-blur-sm">
+                <Lock className="w-8 h-8 text-white mx-auto mb-2" />
+                <span className="text-white font-medium text-sm">Sign-in</span>
+              </div>
             </div>
           )}
         </div>
       </div>
 
-      {/* 컨텐츠 섹션 */}
-      <div className="p-4">
-        {/* 제목과 날짜 */}
+      {/* 컨텐츠 섹션 - 패딩 축소 */}
+      <div className="p-3">
+        {/* 제목, 작성자, 날짜 */}
         <div className="flex justify-between items-center mb-3">
           <h3 className="text-lg font-bold">{treatmentName}</h3>
-          <span className="text-sm text-gray-500">{date}</span>
+          <div className="flex items-center gap-2">
+            <Avatar className="w-6 h-6">
+              <AvatarImage src={authorImage} alt={author} />
+              <AvatarFallback>{author[0]}</AvatarFallback>
+            </Avatar>
+            <span className="text-sm font-medium">{author}</span>
+            <span className="text-sm text-gray-500">·</span>
+            <span className="text-sm text-gray-500">{date}</span>
+          </div>
         </div>
 
         {/* 카테고리 */}
@@ -109,15 +126,27 @@ export function ReviewCard({
           <span className="font-medium">{clinicName}</span>
         </div>
 
-        {/* 평점 */}
+        {/* 평점과 댓글 수, 조회수 */}
         <div className="flex justify-between items-center mb-3">
-          <div className="flex">
-            {[1, 2, 3, 4, 5].map((star) => (
-              <Star
-                key={star}
-                className={`w-4 h-4 ${star <= rating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`}
-              />
-            ))}
+          <div className="flex items-center gap-4">
+            <div className="flex">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <Star
+                  key={star}
+                  className={`w-4 h-4 ${star <= rating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`}
+                />
+              ))}
+            </div>
+            <div className="flex items-center gap-3 text-gray-500 text-sm">
+              <div className="flex items-center">
+                <MessageCircle className="w-4 h-4 mr-1" />
+                <span>{commentCount}</span>
+              </div>
+              <div className="flex items-center">
+                <Eye className="w-4 h-4 mr-1" />
+                <span>{viewCount}</span>
+              </div>
+            </div>
           </div>
           <div className="flex items-center text-sm text-gray-500 justify-center">
             <div className="flex items-center">
@@ -125,36 +154,18 @@ export function ReviewCard({
               <Image
                 src="https://www.google.com/images/poweredby_transparent/poweredby_000000.gif"
                 alt="Google"
-                width={48} // 크기를 두 배로 늘림
-                height={48} // 크기를 두 배로 늘림
+                width={48}
+                height={48}
                 className="ml-1 align-middle"
-                style={{ marginTop: '0.4em' }} // 이미지 위치 조정
+                style={{ marginTop: '0.4em' }}
               />
             </div>
           </div>
         </div>
 
-        {/* 리뷰 내용 */}
-        <div className="text-sm text-gray-600">
-          <p className="mb-2">{displayContent}</p>
-          {shouldShowMoreButton && (
-            <Button
-              variant="ghost"
-              className="p-0 h-auto text-sm text-gray-500 hover:text-gray-700"
-              onClick={() => setIsExpanded(!isExpanded)}
-            >
-              {isExpanded ? (
-                <><ChevronUp className="w-4 h-4 mr-1" /> 접기</>
-              ) : (
-                <><ChevronDown className="w-4 h-4 mr-1" /> 더보기</>
-              )}
-            </Button>
-          )}
-        </div>
-
-        {/* 작성자 */}
-        <div className="mt-3 text-sm text-gray-500">
-          <span>{author}</span>
+        {/* 리뷰 내용 - 더보기 기능 제거하고 고정된 길이로 표시 */}
+        <div className="text-sm text-gray-600 line-clamp-3">
+          {content}
         </div>
       </div>
     </div>

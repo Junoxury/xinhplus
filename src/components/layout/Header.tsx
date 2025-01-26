@@ -4,49 +4,61 @@ import React from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Search, Menu, User } from 'lucide-react'
+import { usePathname } from 'next/navigation'
+import { cn } from '@/lib/utils'
 
 export function Header() {
+  const pathname = usePathname()
+
+  // 현재 경로가 특정 메뉴에 속하는지 확인하는 함수
+  const isActiveMenu = (path: string) => {
+    if (path === '/reviews' && (pathname === '/reviews' || pathname === '/posts')) return true
+    if (path === '/treatments' && pathname.startsWith('/treatments')) return true
+    if (path === '/shortvideo' && pathname.startsWith('/shortvideo')) return true
+    if (path === '/clinics' && pathname.startsWith('/clinics')) return true
+    if (path === '/events' && pathname.startsWith('/events')) return true
+    return pathname === path
+  }
+
   return (
     <header className="sticky top-0 z-50 w-full border-b border-outline/10 bg-surface-container-lowest/80 backdrop-blur-md">
-      <div className="max-w-7xl mx-auto flex items-center justify-between px-4 sm:px-6 lg:px-8">
-        {/* 첫 번째 영역: 로고 */}
-        <div className="flex-shrink-0">
+      <div className="container mx-auto flex items-center justify-between h-16">
+        {/* 로고 */}
+        <div className="w-[140px]">
           <Link href="/" className="text-xl font-bold text-primary">
             Xinh+
           </Link>
         </div>
 
-        {/* 두 번째 영역: 네비게이션 메뉴 - 데스크톱 */}
-        <nav className="hidden md:flex items-center justify-center space-x-8 flex-grow text-center">
-          <Link href="/treatments" className="text-muted-foreground hover:text-primary transition-colors">
-            시술정보
-          </Link>
-          <Link href="/shortvideo" className="text-muted-foreground hover:text-primary transition-colors">
-            X-Video
-          </Link>
-          <Link href="/clinics" className="text-muted-foreground hover:text-primary transition-colors">
-            병원찾기
-          </Link>
-          <Link href="/reviews" className="text-muted-foreground hover:text-primary transition-colors">
-            리얼후기
-          </Link>
-          <Link href="/events" className="text-muted-foreground hover:text-primary transition-colors">
-            이벤트
-          </Link>
+        {/* 네비게이션 메뉴 - 데스크톱 */}
+        <nav className="hidden md:flex items-center justify-center gap-8">
+          {[
+            { href: '/treatments', label: '시술정보' },
+            { href: '/shortvideo', label: 'X-Video' },
+            { href: '/clinics', label: '병원찾기' },
+            { href: '/reviews', label: '리얼후기' },
+            { href: '/events', label: '이벤트' },
+          ].map((menu) => (
+            <Link
+              key={menu.href}
+              href={menu.href}
+              className={cn(
+                'transition-colors relative py-1',
+                isActiveMenu(menu.href)
+                  ? 'text-primary font-medium'
+                  : 'text-muted-foreground hover:text-primary'
+              )}
+            >
+              {menu.label}
+              {isActiveMenu(menu.href) && (
+                <div className="absolute bottom-0 left-0 w-full h-0.5 bg-primary rounded-full" />
+              )}
+            </Link>
+          ))}
         </nav>
 
-        {/* 세 번째 영역: 검색 박스 및 로그인/회원가입 버튼 */}
-        <div className="flex items-center space-x-2 w-2/6">
-          <div className="relative flex-grow">
-            <input
-              type="text"
-              placeholder=""
-              className="w-full border rounded-md md:py-0.5 py-0 text-md font-medium text-gray-500 bg-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500 pr-10 pl-10"
-            />
-            <div className="absolute inset-y-0 left-0 flex items-center pl-3">
-              <Search className="h-5 w-5 text-gray-500" />
-            </div>
-          </div>
+        {/* 로그인/회원가입 버튼 */}
+        <div className="w-[140px] flex justify-end">
           <div className="md:hidden">
             <Link href="/login">
               <User className="h-5 w-5 text-gray-500 hover:text-primary" />
@@ -54,7 +66,10 @@ export function Header() {
           </div>
           <div className="hidden md:block">
             <Link href="/login">
-              <Button variant="solid" className="hover:text-white hover:bg-primary">
+              <Button 
+                variant="outline" 
+                className="font-medium hover:text-primary hover:border-primary"
+              >
                 로그인/회원가입
               </Button>
             </Link>
