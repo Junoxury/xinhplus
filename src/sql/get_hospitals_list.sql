@@ -4,8 +4,10 @@ DROP FUNCTION IF EXISTS get_hospitals_list(bigint,bigint,bigint,boolean,boolean,
 -- 2. 새 함수 생성
 CREATE OR REPLACE FUNCTION get_hospitals_list(
     p_city_id bigint DEFAULT NULL,
-    p_depth2_category_id bigint DEFAULT NULL,
-    p_depth3_category_id bigint DEFAULT NULL,
+    p_depth2_body_category_id bigint DEFAULT NULL,    -- 신체 부위
+    p_depth2_treatment_category_id bigint DEFAULT NULL, -- 시술 방법
+    p_depth3_body_category_id bigint DEFAULT NULL,
+    p_depth3_treatment_category_id bigint DEFAULT NULL,
     p_is_advertised boolean DEFAULT NULL,
     p_is_recommended boolean DEFAULT NULL,
     p_is_member boolean DEFAULT NULL,
@@ -50,15 +52,25 @@ BEGIN
     INTO v_total_count
     FROM hospitals h
     WHERE (p_city_id IS NULL OR h.city_id = p_city_id)
-        AND (p_depth2_category_id IS NULL OR EXISTS (
+        AND (p_depth2_body_category_id IS NULL OR EXISTS (
             SELECT 1 FROM hospital_categories 
             WHERE hospital_id = h.id 
-            AND depth2_category_id = p_depth2_category_id
+            AND depth2_category_id = p_depth2_body_category_id
         ))
-        AND (p_depth3_category_id IS NULL OR EXISTS (
+        AND (p_depth2_treatment_category_id IS NULL OR EXISTS (
             SELECT 1 FROM hospital_categories 
             WHERE hospital_id = h.id 
-            AND depth3_category_id = p_depth3_category_id
+            AND depth2_category_id = p_depth2_treatment_category_id
+        ))
+        AND (p_depth3_body_category_id IS NULL OR EXISTS (
+            SELECT 1 FROM hospital_categories 
+            WHERE hospital_id = h.id 
+            AND depth3_category_id = p_depth3_body_category_id
+        ))
+        AND (p_depth3_treatment_category_id IS NULL OR EXISTS (
+            SELECT 1 FROM hospital_categories 
+            WHERE hospital_id = h.id 
+            AND depth3_category_id = p_depth3_treatment_category_id
         ))
         AND (p_is_advertised IS NULL OR h.is_advertised = p_is_advertised)
         AND (p_is_recommended IS NULL OR h.is_recommended = p_is_recommended)
@@ -115,15 +127,25 @@ BEGIN
         LEFT JOIN cities c ON h.city_id = c.id
         LEFT JOIN hospital_categories_grouped hcg ON h.id = hcg.h_id
         WHERE (p_city_id IS NULL OR h.city_id = p_city_id)
-            AND (p_depth2_category_id IS NULL OR EXISTS (
+            AND (p_depth2_body_category_id IS NULL OR EXISTS (
                 SELECT 1 FROM hospital_categories 
                 WHERE hospital_id = h.id 
-                AND depth2_category_id = p_depth2_category_id
+                AND depth2_category_id = p_depth2_body_category_id
             ))
-            AND (p_depth3_category_id IS NULL OR EXISTS (
+            AND (p_depth2_treatment_category_id IS NULL OR EXISTS (
                 SELECT 1 FROM hospital_categories 
                 WHERE hospital_id = h.id 
-                AND depth3_category_id = p_depth3_category_id
+                AND depth2_category_id = p_depth2_treatment_category_id
+            ))
+            AND (p_depth3_body_category_id IS NULL OR EXISTS (
+                SELECT 1 FROM hospital_categories 
+                WHERE hospital_id = h.id 
+                AND depth3_category_id = p_depth3_body_category_id
+            ))
+            AND (p_depth3_treatment_category_id IS NULL OR EXISTS (
+                SELECT 1 FROM hospital_categories 
+                WHERE hospital_id = h.id 
+                AND depth3_category_id = p_depth3_treatment_category_id
             ))
             AND (p_is_advertised IS NULL OR h.is_advertised = p_is_advertised)
             AND (p_is_recommended IS NULL OR h.is_recommended = p_is_recommended)

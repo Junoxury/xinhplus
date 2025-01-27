@@ -5,8 +5,8 @@ import { TreatmentBanner } from '@/components/treatments/TreatmentBanner'
 import { TreatmentFilter } from '@/components/treatments/TreatmentFilter'
 import { ClinicList } from '@/components/clinics/ClinicList'
 import { useState, useEffect } from 'react'
-import bodyPartsData from '@/data/bodyParts.json'
-import treatmentMethodsData from '@/data/treatmentMethods.json'
+import { useSearchParams } from 'next/navigation'
+
 import { CategorySection } from '@/components/treatments/CategorySection'
 import {
   Select,
@@ -48,8 +48,15 @@ export interface ClinicCardProps {
 
 // 병원 정보 페이지
 export default function ClinicPage() {
+  const searchParams = useSearchParams()
+  
+  // 초기 상태 설정
   const [filters, setFilters] = useState({
     cityId: null as number | null,
+    bodyPartId: searchParams.get('bodyPartId') ? Number(searchParams.get('bodyPartId')) : null,
+    treatmentId: searchParams.get('treatmentId') ? Number(searchParams.get('treatmentId')) : null,
+    bodyPartSubId: searchParams.get('bodyPartSubId') ? Number(searchParams.get('bodyPartSubId')) : null,
+    treatmentSubId: searchParams.get('treatmentSubId') ? Number(searchParams.get('treatmentSubId')) : null,
     options: {
       is_advertised: false,
       has_discount: false,
@@ -71,8 +78,27 @@ export default function ClinicPage() {
     setLoading(false)
   }
 
-  const handleCategorySelect = (selectedCategories: string[]) => {
-    console.log('Selected categories:', selectedCategories)
+  const handleCategorySelect = (categoryId: number | null, isBodyPart: boolean) => {
+    setPage(1)
+    setClinics([])
+    setFilters(prev => ({
+      ...prev,
+      bodyPartId: isBodyPart ? categoryId : prev.bodyPartId,
+      treatmentId: isBodyPart ? prev.treatmentId : categoryId,
+      // depth3 선택이 해제되면 null로 설정
+      bodyPartSubId: isBodyPart ? null : prev.bodyPartSubId,
+      treatmentSubId: isBodyPart ? prev.treatmentSubId : null
+    }))
+  }
+
+  const handleSubCategorySelect = (subCategoryId: number | null, isBodyPart: boolean) => {
+    setPage(1)
+    setClinics([])
+    setFilters(prev => ({
+      ...prev,
+      bodyPartSubId: isBodyPart ? subCategoryId : prev.bodyPartSubId,
+      treatmentSubId: isBodyPart ? prev.treatmentSubId : subCategoryId
+    }))
   }
 
   const [showMobileFilter, setShowMobileFilter] = useState(false)
@@ -99,15 +125,93 @@ export default function ClinicPage() {
     }
   }, [])
 
+  // 카테고리 데이터를 위한 상태 추가
+  const [bodyPartsData, setBodyPartsData] = useState({ categories: [], subCategories: [] })
+  const [treatmentMethodsData, setTreatmentMethodsData] = useState({ categories: [], subCategories: [] })
+
+  // 카테고리 데이터 로드
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        // 신체 부위 카테고리 (parent_id = 1)
+        const { data: bodyParts, error: bodyError } = await supabase
+          .rpc('get_categories', { p_parent_depth1_id: 1 })
+
+        if (bodyError) throw bodyError
+        
+        // 데이터 로깅 추가
+        console.log('신체 부위 카테고리 데이터:', {
+          원본데이터: bodyParts,
+          카테고리: bodyParts?.categories,
+          서브카테고리: bodyParts?.subCategories
+        })
+        
+        setBodyPartsData(bodyParts || { categories: [], subCategories: [] })
+
+        // 시술 방법 카테고리 (parent_id = 2)
+        const { data: treatmentMethods, error: treatmentError } = await supabase
+          .rpc('get_categories', { p_parent_depth1_id: 2 })
+
+        if (treatmentError) throw treatmentError
+        
+        // 시술 방법 데이터도 로깅
+        console.log('시술 방법 카테고리 데이터:', {
+          원본데이터: treatmentMethods,
+          카테고리: treatmentMethods?.categories,
+          서브카테고리: treatmentMethods?.subCategories
+        })
+        
+        setTreatmentMethodsData(treatmentMethods || { categories: [], subCategories: [] })
+
+      } catch (error) {
+        console.error('카테고리 데이터 로드 실패:', error)
+      }
+    }
+
+    fetchCategories()
+  }, [])
+
+  // URL 파라미터에 따른 초기 선택 상태 설정
+  useEffect(() => {
+    const initializeFromUrl = async () => {
+      const bodyPartId = searchParams.get('bodyPartId')
+      const treatmentId = searchParams.get('treatmentId')
+      const bodyPartSubId = searchParams.get('bodyPartSubId')
+      const treatmentSubId = searchParams.get('treatmentSubId')
+
+      // CategorySection에 초기 선택 상태 전달을 위한 prop 추가
+      if (bodyPartId) {
+        handleCategorySelect(Number(bodyPartId), true)
+      }
+      if (treatmentId) {
+        handleCategorySelect(Number(treatmentId), false)
+      }
+      if (bodyPartSubId) {
+        handleSubCategorySelect(Number(bodyPartSubId), true)
+      }
+      if (treatmentSubId) {
+        handleSubCategorySelect(Number(treatmentSubId), false)
+      }
+    }
+
+    initializeFromUrl()
+  }, [searchParams])
+
   useEffect(() => {
     const fetchHospitals = async () => {
       try {
         setLoading(true)
+        
+        // RPC 호출 시작 시간 기록
+        const startTime = performance.now()
+        
         const { data, error } = await supabase
           .rpc('get_hospitals_list', {
             p_city_id: filters.cityId,
-            p_depth2_category_id: null,
-            p_depth3_category_id: null,
+            p_depth2_body_category_id: filters.bodyPartId,
+            p_depth2_treatment_category_id: filters.treatmentId,
+            p_depth3_body_category_id: filters.bodyPartSubId,
+            p_depth3_treatment_category_id: filters.treatmentSubId,
             p_is_advertised: filters.options.is_advertised ? true : null,
             p_is_recommended: null,
             p_is_member: filters.options.is_member ? true : null,
@@ -117,6 +221,11 @@ export default function ClinicPage() {
             p_ad_limit: 2,
             p_sort_by: sortBy
           })
+
+        // RPC 호출 종료 시간 기록 및 소요 시간 계산
+        const endTime = performance.now()
+        const rpcTime = endTime - startTime
+        console.log(`RPC 호출 소요 시간: ${rpcTime.toFixed(2)}ms`)
 
         if (error) {
           throw error
@@ -193,14 +302,19 @@ export default function ClinicPage() {
       <div className="container mx-auto px-4 py-8">
         <h1 className="text-2xl font-bold text-center mb-8">Clinic Information</h1>
         
-        
-        
         <CategorySection 
           bodyParts={bodyPartsData.categories}
           treatmentMethods={treatmentMethodsData.categories}
           bodyPartSubs={bodyPartsData.subCategories}
           treatmentMethodSubs={treatmentMethodsData.subCategories}
           onCategorySelect={handleCategorySelect}
+          onSubCategorySelect={handleSubCategorySelect}
+          initialSelection={{
+            bodyPartId: filters.bodyPartId,
+            treatmentId: filters.treatmentId,
+            bodyPartSubId: filters.bodyPartSubId,
+            treatmentSubId: filters.treatmentSubId
+          }}
         />
 
         {/* PC 버전 */}
@@ -254,6 +368,19 @@ export default function ClinicPage() {
                   onClose={() => toggleMobileFilter(false)}
                   isMobile={true}
                   showPriceFilter={false}
+                  initialFilters={{
+                    cityId: filters.cityId,
+                    bodyPartId: filters.bodyPartId,
+                    treatmentId: filters.treatmentId,
+                    bodyPartSubId: filters.bodyPartSubId,
+                    treatmentSubId: filters.treatmentSubId,
+                    options: {
+                      is_advertised: filters.options.is_advertised,
+                      has_discount: filters.options.has_discount,
+                      is_member: filters.options.is_member
+                    },
+                    priceRange: filters.priceRange
+                  }}
                 />
               </div>
             </div>

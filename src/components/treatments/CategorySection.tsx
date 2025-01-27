@@ -12,11 +12,9 @@ interface Category {
 }
 
 interface SubCategory {
-  parentId: number;
   id: number;
-  name: string;
   label: string;
-  href: string;
+  parentId?: number;
 }
 
 interface CategorySectionProps {
@@ -24,7 +22,14 @@ interface CategorySectionProps {
   treatmentMethods: Category[];
   bodyPartSubs: SubCategory[];
   treatmentMethodSubs: SubCategory[];
-  onCategorySelect?: (categoryIds: string[]) => void;
+  onCategorySelect: (categoryId: number | null, isBodyPart: boolean) => void;
+  onSubCategorySelect: (subCategoryId: number | null, isBodyPart: boolean) => void;
+  initialSelection?: {
+    bodyPartId: number | null;
+    treatmentId: number | null;
+    bodyPartSubId: number | null;
+    treatmentSubId: number | null;
+  };
 }
 
 export function CategorySection({ 
@@ -32,10 +37,12 @@ export function CategorySection({
   treatmentMethods,
   bodyPartSubs,
   treatmentMethodSubs,
-  onCategorySelect 
+  onCategorySelect,
+  onSubCategorySelect,
+  initialSelection
 }: CategorySectionProps) {
-  const [selectedBodyPart, setSelectedBodyPart] = useState<number | null>(null)
-  const [selectedTreatment, setSelectedTreatment] = useState<number | null>(null)
+  const [selectedBodyPart, setSelectedBodyPart] = useState<number | null>(initialSelection?.bodyPartId ?? null)
+  const [selectedTreatment, setSelectedTreatment] = useState<number | null>(initialSelection?.treatmentId ?? null)
   const [selectedSubCategories, setSelectedSubCategories] = useState<string[]>([])
   const scrollRef = useRef<HTMLDivElement>(null)
   const isDown = useRef(false)
@@ -44,6 +51,18 @@ export function CategorySection({
 
   // 모바일용 상태와 핸들러
   const [selectedMobileCategory, setSelectedMobileCategory] = useState<number | null>(null)
+
+  // 초기 서브카테고리 상태 설정
+  const [selectedBodyPartSub, setSelectedBodyPartSub] = useState<SubCategory | null>(
+    initialSelection?.bodyPartSubId 
+      ? bodyPartSubs.find(sub => sub.id === initialSelection.bodyPartSubId) ?? null 
+      : null
+  )
+  const [selectedTreatmentSub, setSelectedTreatmentSub] = useState<SubCategory | null>(
+    initialSelection?.treatmentSubId
+      ? treatmentMethodSubs.find(sub => sub.id === initialSelection.treatmentSubId) ?? null
+      : null
+  )
 
   const onMouseDown = (e: MouseEvent) => {
     isDown.current = true
@@ -80,22 +99,49 @@ export function CategorySection({
 
   const handleCategoryClick = (categoryId: number, isBodyPart: boolean) => {
     if (isBodyPart) {
-      setSelectedBodyPart(prev => prev === categoryId ? null : categoryId)
+      const newId = selectedBodyPart === categoryId ? null : categoryId
+      setSelectedBodyPart(newId)
+      onCategorySelect(newId, true)
     } else {
-      setSelectedTreatment(prev => prev === categoryId ? null : categoryId)
+      const newId = selectedTreatment === categoryId ? null : categoryId
+      setSelectedTreatment(newId)
+      onCategorySelect(newId, false)
     }
   }
 
   const handleSubCategorySelect = (subCategory: SubCategory) => {
-    setSelectedSubCategories(prev => {
-      const newSelection = prev.includes(subCategory.href)
-        ? prev.filter(href => href !== subCategory.href)
-        : [...prev, subCategory.href]
-      
-      // 상위 컴포넌트에 선택된 카테고리 전달
-      onCategorySelect?.(newSelection)
-      return newSelection
-    })
+    const isBodyPart = bodyPartSubs.some(bp => bp.id === subCategory.id)
+    
+    if (isBodyPart) {
+      // 이미 선택된 항목을 다시 클릭하면 선택 해제
+      if (selectedBodyPartSub?.id === subCategory.id) {
+        setSelectedBodyPartSub(null)
+        onSubCategorySelect(null, true)
+      } else {
+        setSelectedBodyPartSub(subCategory)
+        onSubCategorySelect(subCategory.id, true)
+      }
+    } else {
+      if (selectedTreatmentSub?.id === subCategory.id) {
+        setSelectedTreatmentSub(null)
+        onSubCategorySelect(null, false)
+      } else {
+        setSelectedTreatmentSub(subCategory)
+        onSubCategorySelect(subCategory.id, false)
+      }
+    }
+  }
+
+  // 선택된 배지 삭제 핸들러
+  const handleRemoveSubCategory = (subCategory: SubCategory) => {
+    const isBodyPart = bodyPartSubs.some(bp => bp.id === subCategory.id)
+    if (isBodyPart) {
+      setSelectedBodyPartSub(null)
+      onSubCategorySelect(null, true)
+    } else {
+      setSelectedTreatmentSub(null)
+      onSubCategorySelect(null, false)
+    }
   }
 
   const getSubCategories = (categoryId: number | null, isBodyPart: boolean) => {
@@ -112,7 +158,10 @@ export function CategorySection({
   }
 
   const handleMobileCategoryClick = (categoryId: number) => {
-    setSelectedMobileCategory(prev => prev === categoryId ? null : categoryId)
+    const newId = selectedMobileCategory === categoryId ? null : categoryId
+    setSelectedMobileCategory(newId)
+    const isBodyPart = bodyParts.some(bp => bp.id === categoryId)
+    onCategorySelect(newId, isBodyPart)
   }
 
   const isMobileBodyPart = (categoryId: number) => {
@@ -160,7 +209,7 @@ export function CategorySection({
                   {getSubCategories(selectedBodyPart, true).map((sub) => (
                     <Badge
                       key={sub.key}
-                      variant={selectedSubCategories.includes(sub.href) ? "default" : "outline"}
+                      variant={selectedBodyPartSub?.id === sub.id ? "default" : "outline"}
                       className="cursor-pointer hover:bg-primary/90"
                       onClick={() => handleSubCategorySelect(sub)}
                     >
@@ -196,7 +245,7 @@ export function CategorySection({
                   {getSubCategories(selectedTreatment, false).map((sub) => (
                     <Badge
                       key={sub.key}
-                      variant={selectedSubCategories.includes(sub.href) ? "default" : "outline"}
+                      variant={selectedTreatmentSub?.id === sub.id ? "default" : "outline"}
                       className="cursor-pointer hover:bg-primary/90"
                       onClick={() => handleSubCategorySelect(sub)}
                     >
@@ -211,25 +260,33 @@ export function CategorySection({
           </div>
         </div>
 
-        {/* 선택된 서브카테고리 표시 */}
-        {selectedSubCategories.length > 0 && (
+        {/* 선택된 서브카테고리 배지 표시 */}
+        {(selectedBodyPartSub || selectedTreatmentSub) && (
           <div className="mt-4 flex flex-wrap gap-1">
-            {selectedSubCategories.map(href => {
-              const sub = [...bodyPartSubs, ...treatmentMethodSubs].find(s => s.href === href)
-              return sub && (
-                <Badge 
-                  key={`selected-${sub.parentId}-${sub.id}`}
-                  variant="secondary" 
-                  className="flex items-center gap-1"
-                >
-                  {sub.label}
-                  <X 
-                    className="h-3 w-3 cursor-pointer" 
-                    onClick={() => handleSubCategorySelect(sub)}
-                  />
-                </Badge>
-              )
-            })}
+            {selectedBodyPartSub && (
+              <Badge 
+                variant="secondary" 
+                className="flex items-center gap-1"
+              >
+                {selectedBodyPartSub.label}
+                <X 
+                  className="h-3 w-3 cursor-pointer" 
+                  onClick={() => handleRemoveSubCategory(selectedBodyPartSub)}
+                />
+              </Badge>
+            )}
+            {selectedTreatmentSub && (
+              <Badge 
+                variant="secondary" 
+                className="flex items-center gap-1"
+              >
+                {selectedTreatmentSub.label}
+                <X 
+                  className="h-3 w-3 cursor-pointer" 
+                  onClick={() => handleRemoveSubCategory(selectedTreatmentSub)}
+                />
+              </Badge>
+            )}
           </div>
         )}
       </div>
@@ -270,7 +327,7 @@ export function CategorySection({
               {getMobileSubCategories(selectedMobileCategory).map((sub) => (
                 <Badge
                   key={sub.key}
-                  variant={selectedSubCategories.includes(sub.href) ? "default" : "outline"}
+                  variant={selectedSubCategories.includes(sub.id.toString()) ? "default" : "outline"}
                   className="cursor-pointer hover:bg-primary/90"
                   onClick={() => handleSubCategorySelect(sub)}
                 >
@@ -287,8 +344,8 @@ export function CategorySection({
           {/* 선택된 서브카테고리 표시 */}
           {selectedSubCategories.length > 0 && (
             <div className="flex flex-wrap gap-1">
-              {selectedSubCategories.map(href => {
-                const sub = [...bodyPartSubs, ...treatmentMethodSubs].find(s => s.href === href)
+              {selectedSubCategories.map(id => {
+                const sub = [...bodyPartSubs, ...treatmentMethodSubs].find(s => s.id.toString() === id)
                 return sub && (
                   <Badge 
                     key={`mobile-selected-${sub.parentId}-${sub.id}`}

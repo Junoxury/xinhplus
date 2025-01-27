@@ -18,6 +18,15 @@ interface FilterProps {
   onClose?: () => void;
   isMobile?: boolean;
   showPriceFilter?: boolean;
+  initialFilters?: {
+    cityId?: number | null;
+    options: {
+      is_advertised?: boolean;
+      has_discount?: boolean;
+      is_member?: boolean;
+    };
+    priceRange?: number[];
+  };
 }
 
 interface Location {
@@ -40,12 +49,21 @@ export function TreatmentFilter({
   onFilterChange, 
   onClose, 
   isMobile = false,
-  showPriceFilter = true
+  showPriceFilter = true,
+  initialFilters
 }: FilterProps) {
   const [locations, setLocations] = useState<Location[]>([])
-  const [selectedLocations, setSelectedLocations] = useState<string[]>([])
-  const [priceRange, setPriceRange] = useState([0, 100000000])
-  const [selectedOptions, setSelectedOptions] = useState<string[]>([])
+  const [selectedLocations, setSelectedLocations] = useState<string[]>(
+    initialFilters?.cityId ? [initialFilters.cityId.toString()] : []
+  )
+  const [selectedOptions, setSelectedOptions] = useState<string[]>(
+    Object.entries(initialFilters?.options || {})
+      .filter(([_, value]) => value)
+      .map(([key]) => key)
+  )
+  const [priceRange, setPriceRange] = useState(
+    initialFilters?.priceRange || [0, 100000000]
+  )
 
   useEffect(() => {
     const fetchCities = async () => {
