@@ -56,6 +56,14 @@ interface TreatmentFilters {
   sort_by?: 'view_count' | 'like_count' | 'rating' | 'discount_price_asc' | 'discount_price_desc'
 }
 
+// CategorySection에서 전달하는 실제 파라미터 타입 정의
+interface CategorySelectParams {
+  categoryId: number | null;  // depth2 카테고리 ID
+  isBodyPart: boolean;
+  parentId?: number | null;   // depth1 카테고리 ID
+  subCategoryId?: number | null;  // depth3 카테고리 ID
+}
+
 export default function TreatmentPage() {
   const [treatments, setTreatments] = useState<Treatment[]>([])
   const [loading, setLoading] = useState(false)
@@ -66,6 +74,50 @@ export default function TreatmentPage() {
     sort_by: 'view_count'
   })
   const ITEMS_PER_PAGE = 6
+
+  // 카테고리 데이터를 위한 상태 추가
+  const [bodyPartsData, setBodyPartsData] = useState({ categories: [], subCategories: [] })
+  const [treatmentMethodsData, setTreatmentMethodsData] = useState({ categories: [], subCategories: [] })
+
+  // 카테고리 데이터 로드
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        // 신체 부위 카테고리 (parent_id = 1)
+        const { data: bodyParts, error: bodyError } = await supabase
+          .rpc('get_categories', { p_parent_depth1_id: 1 })
+
+        if (bodyError) throw bodyError
+        
+        console.log('신체 부위 카테고리 데이터:', {
+          원본데이터: bodyParts,
+          카테고리: bodyParts?.categories,
+          서브카테고리: bodyParts?.subCategories
+        })
+        
+        setBodyPartsData(bodyParts || { categories: [], subCategories: [] })
+
+        // 시술 방법 카테고리 (parent_id = 2)
+        const { data: treatmentMethods, error: treatmentError } = await supabase
+          .rpc('get_categories', { p_parent_depth1_id: 2 })
+
+        if (treatmentError) throw treatmentError
+        
+        console.log('시술 방법 카테고리 데이터:', {
+          원본데이터: treatmentMethods,
+          카테고리: treatmentMethods?.categories,
+          서브카테고리: treatmentMethods?.subCategories
+        })
+        
+        setTreatmentMethodsData(treatmentMethods || { categories: [], subCategories: [] })
+
+      } catch (error) {
+        console.error('카테고리 데이터 로드 실패:', error)
+      }
+    }
+
+    fetchCategories()
+  }, [])
 
   // 시술 데이터 fetch 함수
   const fetchTreatments = async (page: number, filters: TreatmentFilters, isLoadMore: boolean = false) => {
@@ -96,19 +148,25 @@ export default function TreatmentPage() {
         throw error
       }
 
+      // 데이터가 있는 경우
       if (data && data.length > 0) {
         setTotalCount(data[0].total_count)
         setHasMore(data[0].has_next)
-        
-        // 더보기인 경우 기존 데이터에 추가, 아닌 경우 새로운 데이터로 교체
         setTreatments(prev => isLoadMore ? [...prev, ...data] : data)
-      } else {
-        // 데이터가 없는 경우
+      } 
+      // 데이터가 없는 경우
+      else {
         setTreatments([])
         setHasMore(false)
+        setTotalCount(0)  // 총 개수를 0으로 설정
       }
+
     } catch (error) {
       console.error('Error fetching treatments:', error)
+      // 에러 발생 시에도 상태 초기화
+      setTreatments([])
+      setHasMore(false)
+      setTotalCount(0)
     } finally {
       setLoading(false)
     }
@@ -116,10 +174,24 @@ export default function TreatmentPage() {
 
   // 필터 변경시 데이터 새로 fetch
   useEffect(() => {
-    console.log('Filters changed, fetching with:', filters)
+    console.log('Filters changed, fetching with:', {
+      ...filters,
+      depth2_id: filters.depth2_category_id,
+      depth3_id: filters.depth3_category_id
+    })
+    
     setPage(1)  // 페이지 초기화
     fetchTreatments(1, filters, false)  // 새로운 데이터로 교체
-  }, [filters])
+  }, [
+    filters.depth2_category_id, 
+    filters.depth3_category_id,
+    filters.city_id,
+    filters.is_recommended,
+    filters.is_discounted,
+    filters.price_from,
+    filters.price_to,
+    filters.sort_by
+  ])
 
   const handleLoadMore = async () => {
     if (!loading && hasMore) {
@@ -142,7 +214,8 @@ export default function TreatmentPage() {
       updatedFilters = {
         ...updatedFilters,
         is_recommended: newFilters.options.is_recommended || null,
-        is_discounted: newFilters.options.has_discount || null
+        is_discounted: newFilters.options.has_discount || null,
+        is_advertised: newFilters.options.is_advertised || null
       }
     }
 
@@ -163,11 +236,28 @@ export default function TreatmentPage() {
     setFilters(updatedFilters)
   }
 
-  const handleCategorySelect = (categoryId: number | null, isBodyPart: boolean) => {
+  const handleCategorySelect = (categoryId: number | null, isBodyPart: boolean, parentId?: number) => {
+    console.log('Category selected:', { categoryId, isBodyPart, parentId })
+    
     setFilters(prev => ({
       ...prev,
-      depth2_category_id: categoryId
+      depth2_category_id: categoryId,
+      // depth2가 변경되면 depth3는 초기화
+      depth3_category_id: null
     }))
+  }
+
+  const handleSubCategorySelect = (subCategoryId: number | null, isBodyPart: boolean) => {
+    console.log('SubCategory selected:', { subCategoryId, isBodyPart })
+    
+    setFilters(prev => {
+      const newFilters = {
+        ...prev,
+        depth3_category_id: subCategoryId
+      }
+      console.log('Updated filters with depth3:', newFilters)
+      return newFilters
+    })
   }
 
   const [showMobileFilter, setShowMobileFilter] = useState(false)
@@ -208,6 +298,14 @@ export default function TreatmentPage() {
           bodyPartSubs={bodyPartsData.subCategories}
           treatmentMethodSubs={treatmentMethodsData.subCategories}
           onCategorySelect={handleCategorySelect}
+          onSubCategorySelect={handleSubCategorySelect}
+          // 현재 선택된 카테고리 상태 전달
+          initialSelection={{
+            bodyPartId: filters.depth2_category_id,
+            treatmentId: filters.depth2_category_id,
+            bodyPartSubId: filters.depth3_category_id,
+            treatmentSubId: filters.depth3_category_id
+          }}
         />
 
         {/* PC 버전 */}

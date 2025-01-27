@@ -13,6 +13,7 @@ interface FilterProps {
       is_recommended: boolean;
       has_discount: boolean;
       is_member: boolean;
+      is_advertised: boolean;
     };
     priceRange: number[];
   }) => void;
@@ -49,6 +50,7 @@ const CHECK_OPTIONS: CheckOption[] = [
   { id: 'is_recommended', label: '추천' },
   { id: 'has_discount', label: '할인' },
   { id: 'is_member', label: 'Member' },
+  { id: 'is_advertised', label: 'AD' }
 ]
 
 export function TreatmentFilter({ 
@@ -108,7 +110,8 @@ export function TreatmentFilter({
       options: {
         is_recommended: selectedOptions.includes('is_recommended'),
         has_discount: selectedOptions.includes('has_discount'),
-        is_member: selectedOptions.includes('is_member')
+        is_member: selectedOptions.includes('is_member'),
+        is_advertised: selectedOptions.includes('is_advertised')
       },
       priceRange: value  // 가격 범위 전달
     })
@@ -129,7 +132,8 @@ export function TreatmentFilter({
       options: {
         is_recommended: selectedOptions.includes('is_recommended'),
         has_discount: selectedOptions.includes('has_discount'),
-        is_member: selectedOptions.includes('is_member')
+        is_member: selectedOptions.includes('is_member'),
+        is_advertised: selectedOptions.includes('is_advertised')
       },
       priceRange 
     })
@@ -146,7 +150,8 @@ export function TreatmentFilter({
     const filterOptions = {
       is_recommended: newOptions.includes('is_recommended'),
       has_discount: newOptions.includes('has_discount'),
-      is_member: newOptions.includes('is_member')
+      is_member: newOptions.includes('is_member'),
+      is_advertised: newOptions.includes('is_advertised')
     }
     console.log('TreatmentFilter - toggleOption:', {
       optionId,
@@ -161,15 +166,16 @@ export function TreatmentFilter({
     })
   }
 
-  const updateFilters = () => {
+  const handleFilterChange = () => {
     onFilterChange({ 
       cityId: selectedLocations.length > 0 ? Number(selectedLocations[0]) : null,
       options: {
         is_recommended: selectedOptions.includes('is_recommended'),
         has_discount: selectedOptions.includes('has_discount'),
-        is_member: selectedOptions.includes('is_member')
+        is_member: selectedOptions.includes('is_member'),
+        is_advertised: selectedOptions.includes('is_advertised')
       },
-      priceRange 
+      priceRange: priceRange
     })
   }
 
@@ -182,7 +188,8 @@ export function TreatmentFilter({
       options: {
         is_recommended: selectedOptions.includes('is_recommended'),
         has_discount: selectedOptions.includes('has_discount'),
-        is_member: selectedOptions.includes('is_member')
+        is_member: selectedOptions.includes('is_member'),
+        is_advertised: selectedOptions.includes('is_advertised')
       },
       priceRange
     })
@@ -197,7 +204,8 @@ export function TreatmentFilter({
       options: {
         is_recommended: false,
         has_discount: false,
-        is_member: false
+        is_member: false,
+        is_advertised: false
       },
       priceRange: [0, 100000000]
     })

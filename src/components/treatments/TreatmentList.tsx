@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/button'
 import { Loader2, Filter } from 'lucide-react'
 import { TreatmentCard } from './TreatmentCard'
+import { EmptyState } from "@/components/EmptyState"
 
 interface TreatmentListProps {
   treatments: any[];
@@ -30,6 +31,20 @@ export function TreatmentList({
     { value: 'discount_price_asc', label: '가격 낮은순' },
     { value: 'discount_price_desc', label: '가격 높은순' }
   ]
+
+  // 데이터가 없는 경우
+  if (!loading && treatments.length === 0) {
+    return (
+      <div className={`w-3/4 ${className}`}>
+        <EmptyState 
+          title="아직 등록된 Beauty가 없어요"
+          description="지금 먼저 신청하세요"
+          actionLabel="Contact Us"
+          onAction={() => window.location.href = '/contact'}
+        />
+      </div>
+    )
+  }
 
   return (
     <div className={`w-3/4 ${className}`}>
