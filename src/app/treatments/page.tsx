@@ -314,6 +314,16 @@ export default function TreatmentPage() {
             <TreatmentFilter 
               onFilterChange={handleFilterChange}
               hideMemberOption={true}
+              initialFilters={{
+                cityId: filters.city_id,
+                options: {
+                  is_recommended: filters.is_recommended || false,
+                  has_discount: filters.is_discounted || false,
+                  is_member: false,
+                  is_advertised: filters.is_advertised || false
+                },
+                priceRange: [filters.price_from || 0, filters.price_to || 100000000]
+              }}
             />
           </div>
           <div className="w-2/3">
@@ -357,6 +367,16 @@ export default function TreatmentPage() {
                   onClose={() => toggleMobileFilter(false)}
                   isMobile={true}
                   hideMemberOption={true}
+                  initialFilters={{
+                    cityId: filters.city_id,
+                    options: {
+                      is_recommended: filters.is_recommended || false,
+                      has_discount: filters.is_discounted || false,
+                      is_member: false,
+                      is_advertised: filters.is_advertised || false
+                    },
+                    priceRange: [filters.price_from || 0, filters.price_to || 100000000]
+                  }}
                 />
               </div>
             </div>
