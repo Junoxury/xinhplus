@@ -11,22 +11,24 @@ import {
 } from "@/components/ui/tooltip"
 
 interface ClinicCardProps {
-  title: string
-  description: string
-  image: string
-  rating: number
-  reviewCount: number
-  location: string
+  id: number;
+  title: string;
+  description: string;
+  image: string;
+  rating: number;
+  reviewCount: number;
+  location: string;
   categories: Array<{
     id: number;
     name: string;
-    key: string;
-  }>
-  isNew?: boolean
-  isAd?: boolean
+    key?: string;
+  }>;
+  isNew?: boolean;
+  isAd?: boolean;
 }
 
 export function ClinicCard({
+  id,
   title,
   description,
   image,
@@ -38,74 +40,59 @@ export function ClinicCard({
   isAd
 }: ClinicCardProps) {
   return (
-    <div className="bg-white rounded-lg shadow-md overflow-hidden">
-      {/* 이미지 영역 */}
-      <div className="relative aspect-[4/3]">
-        <img 
-          src={image} 
-          alt={title}
-          className="w-full h-full object-cover"
-        />
-        {/* 뱃지 영역 */}
-        <div className="absolute top-2 left-2 flex gap-1">
-          {isNew && (
-            <Badge className="bg-blue-500 text-white border-0">
-              NEW
-            </Badge>
-          )}
+    <div className="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-100">
+      <Link href={`/clinics/detail?id=${id}`}>
+        <div className="relative aspect-[4/3]">
+          <Image
+            src={image || '/images/placeholder.png'}
+            alt={title}
+            fill
+            className="object-cover"
+          />
           {isAd && (
-            <Badge className="bg-yellow-500 text-white border-0">
+            <Badge variant="secondary" className="absolute top-2 left-2">
               AD
             </Badge>
           )}
+          {isNew && (
+            <Badge className="absolute top-2 right-2 bg-primary">
+              NEW
+            </Badge>
+          )}
         </div>
-      </div>
+      </Link>
 
-      {/* 컨텐츠 영역 */}
       <div className="p-4">
-        {/* 제목 */}
-        <h3 className="font-bold text-lg mb-2">{title}</h3>
-        
-        {/* 병원 소개 */}
-        <p className="text-gray-600 text-sm mb-3 line-clamp-2">
-          {description}
-        </p>
+        <Link href={`/clinics/detail?id=${id}`} className="block">
+          <h3 className="font-semibold text-lg mb-1 hover:text-primary transition-colors">
+            {title}
+          </h3>
+        </Link>
 
-        {/* 평점 & 위치 */}
-        <div className="flex justify-between items-center mb-3">
-          {/* 평점 & 리뷰 */}
-          <div className="flex items-center gap-2">
-            <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-            <span className="font-medium">{rating}</span>
-            <span className="text-gray-500">({reviewCount.toLocaleString()})</span>
+        <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
+          <div className="flex items-center">
+            <Star className="w-4 h-4 text-yellow-400 mr-1" />
+            <span>{rating.toFixed(1)}</span>
           </div>
-
-          {/* 위치 */}
-          <div className="flex items-center text-gray-600 text-sm">
-            <MapPin className="w-4 h-4 mr-1 stroke-gray-400" />
-            <span>{location}</span>
-          </div>
+          <span>•</span>
+          <span>리뷰 {reviewCount}</span>
+          <span>•</span>
+          <span>{location}</span>
         </div>
 
-        {/* 카테고리 태그 */}
-        <div className="flex flex-wrap gap-1">
-          <TooltipProvider>
-            {categories.map(category => (
-              <Tooltip key={category.key}>
-                <TooltipTrigger>
-                  <Badge 
-                    className="bg-pink-50 hover:bg-pink-100 text-pink-500 border-0"
-                  >
-                    {category.name}
-                  </Badge>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>카테고리 ID: {category.id}</p>
-                </TooltipContent>
-              </Tooltip>
+        {categories.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-2">
+            {categories.map((category) => (
+              <Badge 
+                key={category.key || category.id} 
+                variant="outline"
+                className="text-xs"
+              >
+                {category.name}
+              </Badge>
             ))}
-          </TooltipProvider>
-        </div>
+          </div>
+        )}
       </div>
     </div>
   )

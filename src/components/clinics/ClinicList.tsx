@@ -1,6 +1,7 @@
 import { ClinicCard } from './ClinicCard'
 import { Button } from '@/components/ui/button'
 import { Filter } from 'lucide-react'
+import Link from "next/link"
 
 // 정렬 옵션 타입 정의
 export type SortOption = 'latest' | 'views' | 'rating' | 'likes'
@@ -28,6 +29,28 @@ export function ClinicList({
   onSortChange,
   sortBy = 'latest'
 }: ClinicListProps) {
+  if (!loading && clinics.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
+        <div className="mb-8">
+          <h3 className="text-xl font-semibold mb-2">
+            아직 등록된 Beauty가 없어요
+          </h3>
+          <p className="text-gray-500 mb-6">
+            지금 먼저 신청하세요
+          </p>
+          <Link href="/contact">
+            <Button 
+              className="bg-primary hover:bg-primary/90 text-white"
+            >
+              Contact Us
+            </Button>
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className={className}>
       {/* 헤더 */}

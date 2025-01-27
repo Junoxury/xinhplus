@@ -202,9 +202,6 @@ export default function ClinicPage() {
       try {
         setLoading(true)
         
-        // RPC 호출 시작 시간 기록
-        const startTime = performance.now()
-        
         const { data, error } = await supabase
           .rpc('get_hospitals_list', {
             p_city_id: filters.cityId,
@@ -222,13 +219,14 @@ export default function ClinicPage() {
             p_sort_by: sortBy
           })
 
-        // RPC 호출 종료 시간 기록 및 소요 시간 계산
-        const endTime = performance.now()
-        const rpcTime = endTime - startTime
-        console.log(`RPC 호출 소요 시간: ${rpcTime.toFixed(2)}ms`)
-
         if (error) {
+          console.error('RPC 에러:', error)
           throw error
+        }
+
+        if (!data) {
+          console.error('데이터가 없습니다')
+          throw new Error('No data returned')
         }
 
         // 서버에서 받은 원본 데이터 출력
@@ -278,6 +276,9 @@ export default function ClinicPage() {
 
       } catch (error) {
         console.error('병원 목록 조회 실패:', error)
+        if (error instanceof Error) {
+          console.error('에러 메시지:', error.message)
+        }
         setClinics([])
         setHasMore(false)
         setTotalCount(0)
@@ -292,7 +293,17 @@ export default function ClinicPage() {
   const handleFilterChange = (newFilters: any) => {
     setPage(1)
     setClinics([])
-    setFilters(newFilters)
+    // 기존 카테고리 선택 상태를 유지하면서 새로운 필터 적용
+    setFilters(prev => ({
+      ...prev,
+      cityId: newFilters.cityId,
+      options: {
+        is_advertised: newFilters.options.is_advertised,
+        has_discount: newFilters.options.has_discount,
+        is_member: newFilters.options.is_member
+      },
+      priceRange: newFilters.priceRange
+    }))
   }
 
   return (

@@ -7,25 +7,33 @@ import { supabase } from '@/lib/supabase'
 
 interface FilterProps {
   onFilterChange: (filters: {
-    cityId?: number | null;
+    cityId: number | null;
+    bodyPartId: number | null;
+    treatmentId: number | null;
+    bodyPartSubId: number | null;
+    treatmentSubId: number | null;
     options: {
-      is_advertised?: boolean;
-      has_discount?: boolean;
-      is_member?: boolean;
+      is_advertised: boolean;
+      has_discount: boolean;
+      is_member: boolean;
     };
-    priceRange?: number[];
+    priceRange: number[];
   }) => void;
   onClose?: () => void;
   isMobile?: boolean;
   showPriceFilter?: boolean;
   initialFilters?: {
-    cityId?: number | null;
+    cityId: number | null;
+    bodyPartId: number | null;
+    treatmentId: number | null;
+    bodyPartSubId: number | null;
+    treatmentSubId: number | null;
     options: {
-      is_advertised?: boolean;
-      has_discount?: boolean;
-      is_member?: boolean;
+      is_advertised: boolean;
+      has_discount: boolean;
+      is_member: boolean;
     };
-    priceRange?: number[];
+    priceRange: number[];
   };
 }
 

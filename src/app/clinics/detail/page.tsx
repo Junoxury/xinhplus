@@ -12,9 +12,12 @@ import Image from 'next/image'
 import { Share2, Heart, Home, Facebook, Phone, MessageCircle, Mail } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { ChevronDown, ChevronRight, ChevronLeft } from 'lucide-react'
+import { ChevronDown, ChevronRight, ChevronLeft, ChevronUp } from 'lucide-react'
 import { ReviewCard } from '@/components/reviews/ReviewCard'
 import { TreatmentCard } from '@/components/treatments/TreatmentCard'
+import { useSearchParams } from 'next/navigation'
+import { supabase } from '@/lib/supabase'
+import { GoogleMap } from '@/components/map/GoogleMap'
 
 // 더미 시술 데이터 수정
 const treatments = [
@@ -298,12 +301,83 @@ function HorizontalScroll({ children }: { children: React.ReactNode }) {
   )
 }
 
+// 병원 정보 타입 정의
+interface HospitalDetail {
+  id: number
+  hospital_name: string
+  city_id: number
+  business_hours: string
+  address: string
+  phone: string
+  email: string
+  website: string
+  facebook_url: string
+  youtube_url: string
+  tiktok_url: string
+  instagram_url: string
+  zalo_id: string
+  description: string
+  thumbnail_url: string
+  detail_content: string
+  latitude: number
+  longitude: number
+  is_advertised: boolean
+  is_recommended: boolean
+  is_member: boolean
+  has_discount: boolean
+  view_count: number
+  like_count: number
+  average_rating: number
+  city_name: string
+  city_name_vi: string
+  city_name_ko: string
+  categories: {
+    depth2: {
+      id: number
+      label: string
+    }
+    depth3: Array<{
+      id: number
+      label: string
+      parent_id: number
+    }>
+  }[]
+}
+
 // 시술 정보 페이지
 export default function TreatmentDetailPage() {
   const [showFullImage, setShowFullImage] = useState(false)
   const [activeTab, setActiveTab] = useState('detail-section')
   const tabRef = useRef<HTMLDivElement>(null)
   const tabContainerRef = useRef<HTMLDivElement>(null)
+  const [openCategoryIndex, setOpenCategoryIndex] = useState<number | null>(null)
+
+  const searchParams = useSearchParams()
+  const hospitalId = searchParams.get('id')
+  const [hospital, setHospital] = useState<HospitalDetail | null>(null)
+
+  useEffect(() => {
+    const fetchHospital = async () => {
+      if (!hospitalId) return
+
+      const { data, error } = await supabase
+        .rpc('get_hospital_detail', {
+          p_hospital_id: Number(hospitalId)
+        })
+
+      if (error) {
+        console.error('Error fetching hospital detail:', error)
+        return
+      }
+
+      if (data && data[0]) {
+        setHospital(data[0])
+        console.log('Hospital data:', data[0])
+      }
+    }
+
+    fetchHospital()
+  }, [hospitalId])
 
   useEffect(() => {
     const handleScroll = () => {
@@ -482,15 +556,29 @@ export default function TreatmentDetailPage() {
 
         <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
           <div className="flex flex-col md:flex-row">
-            {/* 좌측 이미지 - 2:1 비율 */}
-            <div className="md:w-1/3 relative">
-              <div className="aspect-[2/1]">
+            {/* 좌측 이미지 */}
+            <div className="md:w-1/3 relative overflow-hidden">
+              <div className="aspect-[2/1] md:aspect-[4/3] relative">
                 <Image
-                  src="https://image2.gnsister.com/images/hospital/1536217469595_aead56e583de44768d91de350cd464ad.jpg?f=webp"
-                  alt="Treatment"
+                  src={hospital?.thumbnail_url || "https://via.placeholder.com/800x400"}
+                  alt={hospital?.hospital_name || "Hospital"}
                   fill
                   className="object-cover"
+                  sizes="(max-width: 768px) 100vw, 33vw"
                 />
+                {/* 배지 */}
+                <div className="absolute top-2 left-2 flex gap-2">
+                  {hospital?.is_advertised && (
+                    <span className="px-2 py-1 bg-yellow-500 text-white text-xs font-medium rounded">
+                      AD
+                    </span>
+                  )}
+                  {hospital?.is_member && (
+                    <span className="px-2 py-1 bg-blue-500 text-white text-xs font-medium rounded">
+                      Member
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -522,41 +610,47 @@ export default function TreatmentDetailPage() {
               </div>
 
               {/* 제목 */}
-              <h1 className="text-2xl font-bold mb-4">뷰티라이프 성형외과</h1>
+              <h1 className="text-2xl font-bold mb-2 -mt-1">
+                {hospital?.hospital_name}
+              </h1>
 
               {/* 위치, 평점 */}
-              <div className="flex items-center gap-2 text-gray-600 mb-4">
-                <span>Hanoi - Thẩm mỹ viện Nana</span>
+              <div className="flex items-center gap-2 text-gray-600 mb-3">
+                <span>{hospital?.city_name}</span>
                 <span>•</span>
                 <span className="flex items-center">
-                  ⭐️ 5.0
-                  <span className="text-gray-400 ml-1">(12,546)</span>
+                  ⭐️ {hospital?.average_rating.toFixed(1)}
+                  <span className="text-gray-400 ml-1">({hospital?.view_count.toLocaleString()})</span>
                 </span>
               </div>
 
               {/* 요약 설명 */}
               <div className="mb-6 text-gray-600">
-                <p className="leading-relaxed">
-                  20년 전통의 뷰티라이프 성형외과입니다.
-                  풍부한 임상경험과 노하우를 바탕으로 고객님께 최상의 결과를 약속드립니다.
-                  대한성형외과학회 정회원 의료진이 직접 상담부터 수술, 사후관리까지 책임지고 진행합니다.
-                </p>
+                <p className="leading-relaxed">{hospital?.description}</p>
               </div>
 
               {/* 카테고리 태그 */}
-              <div className="flex flex-wrap gap-2">
-                <span className="px-3 py-1.5 bg-pink-500 text-white rounded-full text-sm">
-                  성형외과
-                </span>
-                <span className="px-3 py-1.5 bg-pink-100 text-pink-500 rounded-full text-sm">
-                  눈성형
-                </span>
-                <span className="px-3 py-1.5 bg-pink-100 text-pink-500 rounded-full text-sm">
-                  코성형
-                </span>
-                <span className="px-3 py-1.5 bg-pink-100 text-pink-500 rounded-full text-sm">
-                  안면윤곽
-                </span>
+              <div className="space-y-3">
+                {hospital?.categories?.map((category, index) => (
+                  <div key={index} className="flex flex-wrap items-center gap-2">
+                    {/* Depth2 카테고리 */}
+                    <span className="px-4 py-2 rounded-full bg-pink-500 text-white text-sm font-medium">
+                      {category.depth2.label}
+                    </span>
+
+                    {/* Depth3 카테고리들 */}
+                    <div className="flex flex-wrap gap-2">
+                      {category.depth3.map((depth3, idx) => (
+                        <span 
+                          key={idx}
+                          className="px-4 py-2 rounded-full bg-pink-100 text-pink-500 text-sm"
+                        >
+                          {depth3.label}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -600,15 +694,7 @@ export default function TreatmentDetailPage() {
                 <div className="space-y-2 text-gray-600">
                   <div className="flex justify-between">
                     <span>평일</span>
-                    <span>10:00 - 19:00</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>토요일</span>
-                    <span>10:00 - 16:00</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>일요일/공휴일</span>
-                    <span className="text-red-500">휴진</span>
+                    <span>{hospital?.business_hours}</span>
                   </div>
                 </div>
               </div>
@@ -616,7 +702,7 @@ export default function TreatmentDetailPage() {
               <div>
                 <h3 className="text-lg font-bold mb-3">주소</h3>
                 <p className="text-gray-600">
-                  하노이시 호안끼엠 구 항박 거리 123번지 뷰티타워 8층
+                  {hospital?.address}
                 </p>
               </div>
 
@@ -625,70 +711,77 @@ export default function TreatmentDetailPage() {
                 <div className="space-y-2 text-gray-600">
                   <div className="flex items-center gap-2">
                     <Phone className="w-4 h-4" />
-                    <span>+84-123-456-789</span>
+                    <span>{hospital?.phone}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Mail className="w-4 h-4" />
-                    <span>info@beautylife.com</span>
+                    <span>{hospital?.email}</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Image
-                      src="/images/zalo.svg"
-                      width={16}
-                      height={16}
-                      alt="Zalo"
-                      className="w-4 h-4"
-                    />
-                    <span>Zalo: beautylife</span>
-                  </div>
+                  {hospital?.zalo_id && (
+                    <div className="flex items-center gap-2">
+                      <Image
+                        src="/images/zalo.svg"
+                        width={16}
+                        height={16}
+                        alt="Zalo"
+                        className="w-4 h-4"
+                      />
+                      <span>Zalo: {hospital.zalo_id}</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
               <div>
                 <h3 className="text-lg font-bold mb-3">온라인 채널</h3>
                 <div className="space-y-2 text-gray-600">
-                  <div className="flex items-center gap-2">
-                    <Home className="w-4 h-4" />
-                    <Link href="https://www.beautylife.com" target="_blank" className="hover:text-blue-500">
-                      www.beautylife.com
-                    </Link>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Facebook className="w-4 h-4" />
-                    <Link href="https://www.facebook.com/beautylife" target="_blank" className="hover:text-blue-500">
-                      facebook.com/beautylife
-                    </Link>
-                  </div>
+                  {hospital?.website && (
+                    <div className="flex items-center gap-2">
+                      <Home className="w-4 h-4" />
+                      <Link href={hospital.website} target="_blank" className="hover:text-blue-500">
+                        {hospital.website}
+                      </Link>
+                    </div>
+                  )}
+                  {hospital?.facebook_url && (
+                    <div className="flex items-center gap-2">
+                      <Facebook className="w-4 h-4" />
+                      <Link href={hospital.facebook_url} target="_blank" className="hover:text-blue-500">
+                        {hospital.facebook_url}
+                      </Link>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
 
             {/* 우측: 구글 지도 */}
             <div className="md:w-1/2">
-              <div className="aspect-square relative rounded-lg overflow-hidden">
-                <Image
-                  src="https://developers.google.com/static/maps/images/landing/hero_maps_static_api.png"
-                  alt="Google Map"
-                  fill
-                  className="object-cover"
+              {hospital?.latitude && hospital?.longitude && (
+                <GoogleMap 
+                  latitude={hospital.latitude}
+                  longitude={hospital.longitude}
+                  zoom={15}
                 />
-              </div>
+              )}
             </div>
           </div>
         </div>
         {/* 상세 설명 섹션 */}
         <div id="detail-section" className="bg-white rounded-2xl shadow-sm overflow-hidden scroll-mt-[112px]">
           <div className="flex flex-col md:flex-row">
-            {/* 좌측 상세 설명 이미지 */}
+            {/* 좌측 상세 설명 */}
             <div className="md:w-2/3 relative">
               <div className={`relative ${!showFullImage ? 'h-[800px]' : ''} overflow-hidden`}>
-                <Image
-                  src="https://images.babitalk.com/images/6f54b8508f8bccc7f37cd069abbe7c36/event_img_1700809372.jpg"
-                  alt="Treatment detail"
-                  width={800}
-                  height={2400}
-                  className="w-full object-top object-cover"
-                />
+                <div className="p-6">
+                  <h2 className="text-lg font-bold mb-4">상세 설명</h2>
+                  <div 
+                    className="prose max-w-none"
+                    dangerouslySetInnerHTML={{ 
+                      __html: hospital?.detail_content || '' 
+                    }} 
+                  />
+                </div>
                 {!showFullImage && (
                   <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-white to-transparent" />
                 )}
