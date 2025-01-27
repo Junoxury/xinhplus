@@ -10,6 +10,7 @@ interface TreatmentListProps {
   onLoadMore: () => void;
   className?: string;
   onFilterClick?: () => void;
+  onSortChange?: (sortBy: 'view_count' | 'like_count' | 'rating' | 'discount_price_asc' | 'discount_price_desc') => void;
 }
 
 export function TreatmentList({ 
@@ -19,8 +20,17 @@ export function TreatmentList({
   hasMore, 
   onLoadMore,
   className = "",
-  onFilterClick
+  onFilterClick,
+  onSortChange
 }: TreatmentListProps) {
+  const sortOptions = [
+    { value: 'view_count', label: '조회순' },
+    { value: 'like_count', label: '좋아요순' },
+    { value: 'rating', label: '평점순' },
+    { value: 'discount_price_asc', label: '가격 낮은순' },
+    { value: 'discount_price_desc', label: '가격 높은순' }
+  ]
+
   return (
     <div className={`w-3/4 ${className}`}>
       <div className="flex justify-between items-center mb-4">
@@ -41,18 +51,23 @@ export function TreatmentList({
           </div>
         </div>
 
-        <select className="h-9 px-3 text-sm border rounded-md bg-background">
-          <option value="recommended">추천순</option>
-          <option value="price-low">가격 낮은순</option>
-          <option value="price-high">가격 높은순</option>
-          <option value="rating">평점순</option>
+        <select 
+          className="border rounded-lg px-3 py-2 text-sm"
+          onChange={(e) => onSortChange?.(e.target.value as any)}
+          defaultValue="view_count"
+        >
+          {sortOptions.map(option => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
         </select>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {treatments.map((treatment) => (
           <TreatmentCard 
-            key={treatment.id}
+            key={`treatment-${treatment.id}`}
             {...treatment}
           />
         ))}

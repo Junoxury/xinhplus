@@ -1,243 +1,177 @@
 'use client'
 
-import { CategoryIcon } from '@/components/category/CategoryIcon'
+import { useState, useEffect } from 'react'
+import { supabase } from '@/lib/supabase'
 import { TreatmentBanner } from '@/components/treatments/TreatmentBanner'
 import { TreatmentFilter } from '@/components/treatments/TreatmentFilter'
 import { TreatmentList } from '@/components/treatments/TreatmentList'
-import { useState, useEffect } from 'react'
 import bodyPartsData from '@/data/bodyParts.json'
 import treatmentMethodsData from '@/data/treatmentMethods.json'
 import { CategorySection } from '@/components/treatments/CategorySection'
 
-// 더미 시술 데이터 수정
-const treatments = [
-  {
-    id: 1,
-    title: '눈매교정 3종',
-    description: '자연스러운 눈매 교정과 눈밑 지방 재배치로 생기있는 눈매를 만듭니다',
-    clinic: '뷰티라이프',
-    image: 'https://web.babitalk.com/_next/image?url=https%3A%2F%2Fimages.babitalk.com%2Fimages%2F89de9f71c6e88351e0f8f02db5cad770%2Fbanner_img_1724718171.jpg&w=384&q=75',
-    rating: 5.0,
-    reviewCount: 12546,
-    originalPrice: 87000000,
-    discountRate: 45,
-    location: 'Hanoi - Thẩm mỹ viện Nana',
-    categories: ['눈매교정', '쌍꺼풀', '눈성형'],
-    isNew: true,
-    isAd: false
-  },
-  {
-    id: 2,
-    title: '코 성형 패키지',
-    description: '자연스러운 코 라인을 위한 맞춤 성형',
-    clinic: '뷰티라이프',
-    image: 'https://web.babitalk.com/_next/image?url=https%3A%2F%2Fimages.babitalk.com%2Fimages%2F89de9f71c6e88351e0f8f02db5cad770%2Fbanner_img_1724718171.jpg&w=384&q=75',
-    rating: 4.9,
-    reviewCount: 8234,
-    originalPrice: 95000000,
-    discountRate: 35,
-    location: 'Hanoi - Thẩm mỹ viện Nana',
-    categories: ['코성형', '코필러'],
-    isNew: false,
-    isAd: true
-  },
-  {
-    id: 3,
-    title: '안면윤곽 패키지',
-    description: '자연스러운 라인 교정으로 갸름한 얼굴형을 만듭니다',
-    clinic: '뷰티라이프',
-    image: 'https://web.babitalk.com/_next/image?url=https%3A%2F%2Fimages.babitalk.com%2Fimages%2F89de9f71c6e88351e0f8f02db5cad770%2Fbanner_img_1724718171.jpg&w=384&q=75',
-    rating: 4.8,
-    reviewCount: 6789,
-    originalPrice: 120000000,
-    discountRate: 40,
-    location: 'Hanoi - Thẩm mỹ viện Nana',
-    categories: ['안면윤곽', '턱성형'],
-    isNew: true,
-    isAd: false
-  },
-  {
-    id: 4,
-    title: '이마 지방이식',
-    description: '자연스러운 이마 라인과 탄력있는 피부를 동시에',
-    clinic: '뷰티라이프',
-    image: 'https://web.babitalk.com/_next/image?url=https%3A%2F%2Fimages.babitalk.com%2Fimages%2F89de9f71c6e88351e0f8f02db5cad770%2Fbanner_img_1724718171.jpg&w=384&q=75',
-    rating: 4.7,
-    reviewCount: 5432,
-    originalPrice: 75000000,
-    discountRate: 30,
-    location: 'Hanoi - Thẩm mỹ viện Nana',
-    categories: ['이마', '지방이식'],
-    isNew: true,
-    isAd: true
-  },
-  {
-    id: 5,
-    title: '리프팅 패키지',
-    description: '울쎄라 리프팅과 피부재생 관리를 동시에',
-    clinic: '뷰티라이프',
-    image: 'https://web.babitalk.com/_next/image?url=https%3A%2F%2Fimages.babitalk.com%2Fimages%2F89de9f71c6e88351e0f8f02db5cad770%2Fbanner_img_1724718171.jpg&w=384&q=75',
-    rating: 4.9,
-    reviewCount: 4567,
-    originalPrice: 65000000,
-    discountRate: 25,
-    location: 'Hanoi - Thẩm mỹ viện Nana',
-    categories: ['리프팅', '피부관리'],
-    isNew: false,
-    isAd: false
-  },
-  {
-    id: 6,
-    title: '턱 필러',
-    description: '자연스러운 턱 라인 교정으로 세련된 인상을 만듭니다',
-    clinic: '뷰티라이프',
-    image: 'https://web.babitalk.com/_next/image?url=https%3A%2F%2Fimages.babitalk.com%2Fimages%2F89de9f71c6e88351e0f8f02db5cad770%2Fbanner_img_1724718171.jpg&w=384&q=75',
-    rating: 4.6,
-    reviewCount: 3456,
-    originalPrice: 45000000,
-    discountRate: 20,
-    location: 'Hanoi - Thẩm mỹ viện Nana',
-    categories: ['턱성형', '필러'],
-    isNew: true,
-    isAd: true
-  },
-  {
-    id: 7,
-    title: '눈밑 지방재배치',
-    description: '자연스러운 눈밑 교정으로 피곤해 보이지 않는 인상을 만듭니다',
-    clinic: '뷰티라이프',
-    image: 'https://web.babitalk.com/_next/image?url=https%3A%2F%2Fimages.babitalk.com%2Fimages%2F89de9f71c6e88351e0f8f02db5cad770%2Fbanner_img_1724718171.jpg&w=384&q=75',
-    rating: 4.8,
-    reviewCount: 2345,
-    originalPrice: 55000000,
-    discountRate: 35,
-    location: 'Hanoi - Thẩm mỹ viện Nana',
-    categories: ['눈성형', '지방이식'],
-    isNew: false,
-    isAd: false
-  },
-  {
-    id: 8,
-    title: '볼륨 필러',
-    description: '자연스러운 볼륨감으로 어려보이는 얼굴을 만듭니다',
-    clinic: '뷰티라이프',
-    image: 'https://web.babitalk.com/_next/image?url=https%3A%2F%2Fimages.babitalk.com%2Fimages%2F89de9f71c6e88351e0f8f02db5cad770%2Fbanner_img_1724718171.jpg&w=384&q=75',
-    rating: 4.7,
-    reviewCount: 1234,
-    originalPrice: 35000000,
-    discountRate: 30,
-    location: 'Hanoi - Thẩm mỹ viện Nana',
-    categories: ['필러', '볼륨'],
-    isNew: true,
-    isAd: false
-  },
-  {
-    id: 9,
-    title: '레이저 토닝',
-    description: '피부 톤 개선과 모공 관리를 동시에',
-    clinic: '뷰티라이프',
-    image: 'https://web.babitalk.com/_next/image?url=https%3A%2F%2Fimages.babitalk.com%2Fimages%2F89de9f71c6e88351e0f8f02db5cad770%2Fbanner_img_1724718171.jpg&w=384&q=75',
-    rating: 4.5,
-    reviewCount: 987,
-    originalPrice: 25000000,
-    discountRate: 15,
-    location: 'Hanoi - Thẩm mỹ viện Nana',
-    categories: ['레이저', '피부관리'],
-    isNew: false,
-    isAd: true
-  },
-  {
-    id: 10,
-    title: '실리프팅',
-    description: '자연스러운 리프팅 효과로 탄력있는 피부를 만듭니다',
-    clinic: '뷰티라이프',
-    image: 'https://web.babitalk.com/_next/image?url=https%3A%2F%2Fimages.babitalk.com%2Fimages%2F89de9f71c6e88351e0f8f02db5cad770%2Fbanner_img_1724718171.jpg&w=384&q=75',
-    rating: 4.6,
-    reviewCount: 876,
-    originalPrice: 45000000,
-    discountRate: 25,
-    location: 'Hanoi - Thẩm mỹ viện Nana',
-    categories: ['리프팅', '실리프팅'],
-    isNew: true,
-    isAd: false
-  },
-  {
-    id: 11,
-    title: '지방흡입',
-    description: '부분 지방흡입으로 라인을 교정합니다',
-    clinic: '뷰티라이프',
-    image: 'https://web.babitalk.com/_next/image?url=https%3A%2F%2Fimages.babitalk.com%2Fimages%2F89de9f71c6e88351e0f8f02db5cad770%2Fbanner_img_1724718171.jpg&w=384&q=75',
-    rating: 4.7,
-    reviewCount: 765,
-    originalPrice: 85000000,
-    discountRate: 40,
-    location: 'Hanoi - Thẩm mỹ viện Nana',
-    categories: ['지방흡입', '바디라인'],
-    isNew: false,
-    isAd: true
-  },
-  {
-    id: 12,
-    title: '보톡스',
-    description: '자연스러운 주름 개선과 라인 교정',
-    clinic: '뷰티라이프',
-    image: 'https://web.babitalk.com/_next/image?url=https%3A%2F%2Fimages.babitalk.com%2Fimages%2F89de9f71c6e88351e0f8f02db5cad770%2Fbanner_img_1724718171.jpg&w=384&q=75',
-    rating: 4.8,
-    reviewCount: 654,
-    originalPrice: 15000000,
-    discountRate: 20,
-    location: 'Hanoi - Thẩm mỹ viện Nana',
-    categories: ['보톡스', '주름개선'],
-    isNew: true,
-    isAd: false
-  }
-];
-
-// TreatmentCard 컴포넌트에 전달할 props 타입 정의
-export interface TreatmentCardProps {
-  id: number;
-  title: string;
-  clinic: string;
-  image: string;
-  rating: number;
-  reviewCount: number;
-  price: number;
-  discount: number;
-  location: string;
-  tags: string[];
+// 시술 데이터 타입 정의
+interface Treatment {
+  id: number
+  hospital_id: number
+  hospital_name: string
+  title: string
+  summary: string
+  city_id: number
+  city_name: string
+  rating: number
+  comment_count: number
+  view_count: number
+  like_count: number
+  thumbnail_url: string
+  detail_content: string
+  is_advertised: boolean
+  is_recommended: boolean
+  is_discounted: boolean
+  price: number
+  discount_price: number
+  discount_rate: number
+  categories: {
+    depth2_id: number
+    depth2_name: string
+    depth3_list: {
+      id: number
+      name: string
+    }[]
+  }[]
+  created_at: string
+  updated_at: string
 }
 
-// 시술 정보 페이지
+// 필터 타입 정의 수정
+interface TreatmentFilters {
+  hospital_id?: number
+  depth2_category_id?: number
+  depth3_category_id?: number
+  is_advertised?: boolean
+  is_recommended?: boolean
+  city_id?: number | null
+  is_discounted?: boolean
+  price_from?: number
+  price_to?: number
+  sort_by?: 'view_count' | 'like_count' | 'rating' | 'discount_price_asc' | 'discount_price_desc'
+}
+
 export default function TreatmentPage() {
-  const [filters, setFilters] = useState({
-    priceRange: [0, 100000000],
-    location: '',
-    rating: 0,
-    categories: []
-  });
-
-  const [page, setPage] = useState(1)
+  const [treatments, setTreatments] = useState<Treatment[]>([])
   const [loading, setLoading] = useState(false)
-  const ITEMS_PER_PAGE = 10
+  const [page, setPage] = useState(1)
+  const [hasMore, setHasMore] = useState(true)
+  const [totalCount, setTotalCount] = useState(0)
+  const [filters, setFilters] = useState<TreatmentFilters>({
+    sort_by: 'view_count'
+  })
+  const ITEMS_PER_PAGE = 6
 
-  const currentTreatments = treatments.slice(0, page * ITEMS_PER_PAGE)
-  const hasMore = currentTreatments.length < treatments.length
+  // 시술 데이터 fetch 함수
+  const fetchTreatments = async (page: number, filters: TreatmentFilters, isLoadMore: boolean = false) => {
+    try {
+      setLoading(true)
+      
+      const rpcParams = {
+        p_hospital_id: filters.hospital_id ?? null,
+        p_depth2_category_id: filters.depth2_category_id ?? null,
+        p_depth3_category_id: filters.depth3_category_id ?? null,
+        p_is_advertised: filters.is_advertised ?? null,
+        p_is_recommended: filters.is_recommended,
+        p_city_id: filters.city_id ?? null,
+        p_is_discounted: filters.is_discounted ?? null,
+        p_price_from: filters.price_from,
+        p_price_to: filters.price_to,
+        p_sort_by: filters.sort_by ?? 'view_count',
+        p_limit: ITEMS_PER_PAGE,
+        p_offset: (page - 1) * ITEMS_PER_PAGE
+      }
+      
+      console.log('Calling RPC with params:', rpcParams)
 
-  const handleLoadMore = async () => {
-    setLoading(true)
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    setPage(prev => prev + 1)
-    setLoading(false)
+      const { data, error } = await supabase.rpc('get_treatments', rpcParams)
+
+      if (error) {
+        console.error('Supabase RPC Error:', error)
+        throw error
+      }
+
+      if (data && data.length > 0) {
+        setTotalCount(data[0].total_count)
+        setHasMore(data[0].has_next)
+        
+        // 더보기인 경우 기존 데이터에 추가, 아닌 경우 새로운 데이터로 교체
+        setTreatments(prev => isLoadMore ? [...prev, ...data] : data)
+      } else {
+        // 데이터가 없는 경우
+        setTreatments([])
+        setHasMore(false)
+      }
+    } catch (error) {
+      console.error('Error fetching treatments:', error)
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const handleCategorySelect = (selectedCategories: string[]) => {
-    // 선택된 카테고리로 필터링 로직 구현
-    console.log('Selected categories:', selectedCategories)
+  // 필터 변경시 데이터 새로 fetch
+  useEffect(() => {
+    console.log('Filters changed, fetching with:', filters)
+    setPage(1)  // 페이지 초기화
+    fetchTreatments(1, filters, false)  // 새로운 데이터로 교체
+  }, [filters])
+
+  const handleLoadMore = async () => {
+    if (!loading && hasMore) {
+      const nextPage = page + 1
+      await fetchTreatments(nextPage, filters, true)  // 더보기는 true로 설정
+      setPage(nextPage)
+    }
+  }
+
+  const handleFilterChange = (newFilters: any) => {
+    let updatedFilters = { ...filters }
+
+    // 도시 ID 처리
+    if ('cityId' in newFilters) {
+      updatedFilters.city_id = newFilters.cityId ? Number(newFilters.cityId) : null
+    }
+
+    // 옵션 처리
+    if (newFilters.options) {
+      updatedFilters = {
+        ...updatedFilters,
+        is_recommended: newFilters.options.is_recommended || null,
+        is_discounted: newFilters.options.has_discount || null
+      }
+    }
+
+    // 가격 범위 처리
+    if (newFilters.priceRange) {
+      const [from, to] = newFilters.priceRange
+      console.log('Processing price range:', { from, to })  // 디버깅 로그 추가
+      
+      // 가격이 기본값과 다른 경우에만 필터 적용
+      updatedFilters = {
+        ...updatedFilters,
+        price_from: from === 0 ? null : from,
+        price_to: to === 100000000 ? null : to
+      }
+    }
+
+    console.log('Updated filters with price:', updatedFilters)  // 디버깅 로그 추가
+    setFilters(updatedFilters)
+  }
+
+  const handleCategorySelect = (categoryId: number | null, isBodyPart: boolean) => {
+    setFilters(prev => ({
+      ...prev,
+      depth2_category_id: categoryId
+    }))
   }
 
   const [showMobileFilter, setShowMobileFilter] = useState(false)
 
-  // 모달 열릴 때 body 스크롤 제어
   const toggleMobileFilter = (show: boolean) => {
     if (show) {
       document.body.style.overflow = 'hidden'
@@ -247,12 +181,19 @@ export default function TreatmentPage() {
     setShowMobileFilter(show)
   }
 
-  // cleanup effect
   useEffect(() => {
     return () => {
       document.body.style.overflow = 'auto'
     }
   }, [])
+
+  const handleSortChange = (sortBy: 'view_count' | 'like_count' | 'rating' | 'discount_price_asc' | 'discount_price_desc') => {
+    setFilters(prev => ({
+      ...prev,
+      sort_by: sortBy
+    }))
+    // 정렬 변경 시 페이지 초기화는 useEffect에서 처리됨
+  }
 
   return (
     <main className="min-h-screen">
@@ -272,17 +213,21 @@ export default function TreatmentPage() {
         {/* PC 버전 */}
         <div className="hidden md:flex gap-6 mt-8">
           <div className="w-1/3">
-            <TreatmentFilter onFilterChange={setFilters} />
+            <TreatmentFilter 
+              onFilterChange={handleFilterChange}
+              hideMemberOption={true}
+            />
           </div>
           <div className="w-2/3">
             <TreatmentList 
-              treatments={currentTreatments}
-              totalCount={treatments.length}
+              treatments={treatments}
               loading={loading}
               hasMore={hasMore}
               onLoadMore={handleLoadMore}
               className="w-full"
               onFilterClick={() => toggleMobileFilter(true)}
+              onSortChange={handleSortChange}
+              totalCount={totalCount}
             />
           </div>
         </div>
@@ -290,16 +235,16 @@ export default function TreatmentPage() {
         {/* 모바일 버전 */}
         <div className="block md:hidden">
           <TreatmentList 
-            treatments={currentTreatments}
-            totalCount={treatments.length}
+            treatments={treatments}
             loading={loading}
             hasMore={hasMore}
             onLoadMore={handleLoadMore}
             className="w-full"
             onFilterClick={() => toggleMobileFilter(true)}
+            onSortChange={handleSortChange}
+            totalCount={totalCount}
           />
 
-          {/* 모바일 필터 오버레이 */}
           {showMobileFilter && (
             <div 
               className="fixed inset-0 bg-black bg-opacity-50 z-50"
@@ -310,9 +255,10 @@ export default function TreatmentPage() {
                 onClick={e => e.stopPropagation()}
               >
                 <TreatmentFilter 
-                  onFilterChange={setFilters}
+                  onFilterChange={handleFilterChange}
                   onClose={() => toggleMobileFilter(false)}
                   isMobile={true}
+                  hideMemberOption={true}
                 />
               </div>
             </div>

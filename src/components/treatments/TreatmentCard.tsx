@@ -1,38 +1,47 @@
 import Image from 'next/image'
 import { Heart, MapPin, Star } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { formatPrice } from '@/utils/format'
 
 interface TreatmentCardProps {
-  image: string
+  id: number
   title: string
-  description: string
-  clinic: string
-  location: string
-  originalPrice: number
-  discountRate: number
+  summary: string
+  hospital_name: string
+  city_name: string
+  thumbnail_url: string
+  price: number
+  discount_price: number
+  discount_rate: number
   rating: number
-  reviewCount: number
-  categories: string[]
-  isAd?: boolean
-  isNew?: boolean
+  comment_count: number
+  categories: {
+    depth2_id: number
+    depth2_name: string
+    depth3_list: {
+      id: number
+      name: string
+    }[]
+  }[]
+  is_advertised: boolean
+  is_recommended: boolean
 }
 
 export function TreatmentCard({
-  image,
   title,
-  description,
-  clinic,
-  location,
-  originalPrice,
-  discountRate,
+  summary,
+  hospital_name,
+  city_name,
+  thumbnail_url,
+  price,
+  discount_price,
+  discount_rate,
   rating,
-  reviewCount,
+  comment_count,
   categories,
-  isAd = false,
-  isNew = false
+  is_advertised,
+  is_recommended
 }: TreatmentCardProps) {
-  const discountedPrice = originalPrice * (1 - discountRate / 100)
-
   return (
     <div className="w-full overflow-x-hidden">
       <div className="rounded-2xl overflow-hidden bg-white">
@@ -40,7 +49,7 @@ export function TreatmentCard({
           {/* 이미지 섹션 */}
           <div className="relative md:w-full md:h-[200px] w-[120px] h-[120px] flex-shrink-0">
             <Image
-              src={image}
+              src={thumbnail_url || '/placeholder.jpg'}
               alt={title}
               fill
               sizes="(max-width: 768px) 120px, (max-width: 1200px) 50vw, 33vw"
@@ -49,12 +58,12 @@ export function TreatmentCard({
             />
             {/* Top badges */}
             <div className="absolute top-2 left-2 flex gap-1">
-              {isNew && (
+              {is_recommended && (
                 <div className="bg-black/80 text-white text-xs px-2 py-1 rounded-full backdrop-blur-sm">
-                  신규
+                  추천
                 </div>
               )}
-              {isAd && (
+              {is_advertised && (
                 <div className="bg-black/80 text-white text-xs px-2 py-1 rounded-full backdrop-blur-sm">
                   AD
                 </div>
@@ -70,54 +79,54 @@ export function TreatmentCard({
           <div className="p-4 flex-1 md:pt-4 pt-0">
             {/* Title and description */}
             <h3 className="text-lg font-bold mb-1">{title}</h3>
-            <p className="text-sm text-gray-600 md:line-clamp-2 line-clamp-1 mb-2">{description}</p>
+            <p className="text-sm text-gray-600 md:line-clamp-2 line-clamp-1 mb-2">{summary}</p>
 
             {/* Location and clinic */}
             <div className="flex items-center text-sm text-gray-600 mb-2">
               <MapPin className="w-4 h-4 mr-1" />
-              <span className="line-clamp-1">{location}</span>
+              <span className="line-clamp-1">{city_name} - {hospital_name}</span>
             </div>
 
             {/* PC 버전 Rating */}
             <div className="md:flex hidden items-center mb-3">
               <Star className="w-4 h-4 text-yellow-400 mr-1" />
               <span className="font-bold mr-1">{rating.toFixed(1)}</span>
-              <span className="text-gray-600">({reviewCount.toLocaleString()})</span>
+              <span className="text-gray-600">({comment_count.toLocaleString()})</span>
             </div>
 
             {/* 모바일 버전 Price + Rating 한 줄로 */}
             <div className="md:hidden flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <span className="text-red-500 font-bold">{discountRate}%</span>
-                <span className="font-bold">{discountedPrice.toLocaleString()}</span>
-                <span className="text-sm text-gray-400 line-through">{originalPrice.toLocaleString()}</span>
+                <span className="text-red-500 font-bold">{discount_rate}%</span>
+                <span className="font-bold">{formatPrice(discount_price)}</span>
+                <span className="text-sm text-gray-400 line-through">{formatPrice(price)}</span>
               </div>
               <div className="flex items-center">
                 <Star className="w-4 h-4 text-yellow-400 mr-1" />
                 <span className="font-bold mr-1">{rating.toFixed(1)}</span>
-                <span className="text-gray-600">({reviewCount.toLocaleString()})</span>
+                <span className="text-gray-600">({comment_count.toLocaleString()})</span>
               </div>
             </div>
 
             {/* PC 버전 Price */}
             <div className="md:block hidden mb-3">
               <div className="flex items-center gap-2">
-                <span className="text-red-500 font-bold text-lg">{discountRate}%</span>
-                <span className="font-bold text-lg">{discountedPrice.toLocaleString()} VND</span>
+                <span className="text-red-500 font-bold text-lg">{discount_rate}%</span>
+                <span className="font-bold text-lg">{formatPrice(discount_price)}</span>
               </div>
               <div>
-                <span className="text-sm text-gray-400 line-through">{originalPrice.toLocaleString()} VND</span>
+                <span className="text-sm text-gray-400 line-through">{formatPrice(price)}</span>
               </div>
             </div>
 
             {/* Categories - PC에서만 표시 */}
             <div className="md:flex hidden flex-wrap gap-1">
-              {categories.map((category, index) => (
+              {categories?.map((category, index) => (
                 <Badge 
                   key={index} 
                   className="rounded-full text-xs px-3 py-1 bg-pink-100 hover:bg-pink-200 text-pink-800 border-0"
                 >
-                  {category}
+                  {category.depth2_name}
                 </Badge>
               ))}
             </div>

@@ -4,16 +4,13 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { useState, useEffect } from "react"
 import { X } from "lucide-react"
 import { supabase } from '@/lib/supabase'
+import { formatPrice } from '@/utils/format'
 
 interface FilterProps {
   onFilterChange: (filters: {
-    cityId: number | null;
-    bodyPartId: number | null;
-    treatmentId: number | null;
-    bodyPartSubId: number | null;
-    treatmentSubId: number | null;
+    cityId?: number | null;
     options: {
-      is_advertised: boolean;
+      is_recommended: boolean;
       has_discount: boolean;
       is_member: boolean;
     };
@@ -22,6 +19,7 @@ interface FilterProps {
   onClose?: () => void;
   isMobile?: boolean;
   showPriceFilter?: boolean;
+  hideMemberOption?: boolean;
   initialFilters?: {
     cityId: number | null;
     bodyPartId: number | null;
@@ -48,7 +46,7 @@ interface CheckOption {
 }
 
 const CHECK_OPTIONS: CheckOption[] = [
-  { id: 'is_advertised', label: '추천' },
+  { id: 'is_recommended', label: '추천' },
   { id: 'has_discount', label: '할인' },
   { id: 'is_member', label: 'Member' },
 ]
@@ -58,6 +56,7 @@ export function TreatmentFilter({
   onClose, 
   isMobile = false,
   showPriceFilter = true,
+  hideMemberOption = false,
   initialFilters
 }: FilterProps) {
   const [locations, setLocations] = useState<Location[]>([])
@@ -100,7 +99,19 @@ export function TreatmentFilter({
 
   const handlePriceChange = (value: number[]) => {
     setPriceRange(value)
-    updateFilters()
+    
+    // 디버깅 로그 추가
+    console.log('Price range changed:', value)
+    
+    onFilterChange({ 
+      cityId: selectedLocations.length > 0 ? Number(selectedLocations[0]) : null,
+      options: {
+        is_recommended: selectedOptions.includes('is_recommended'),
+        has_discount: selectedOptions.includes('has_discount'),
+        is_member: selectedOptions.includes('is_member')
+      },
+      priceRange: value  // 가격 범위 전달
+    })
   }
 
   const toggleLocation = (locationId: string) => {
@@ -116,7 +127,7 @@ export function TreatmentFilter({
     onFilterChange({ 
       cityId: newLocations.length > 0 ? Number(newLocations[0]) : null,
       options: {
-        is_advertised: selectedOptions.includes('is_advertised'),
+        is_recommended: selectedOptions.includes('is_recommended'),
         has_discount: selectedOptions.includes('has_discount'),
         is_member: selectedOptions.includes('is_member')
       },
@@ -125,22 +136,27 @@ export function TreatmentFilter({
   }
 
   const toggleOption = (optionId: string) => {
-    // 새로운 options 배열을 즉시 생성
     const newOptions = selectedOptions.includes(optionId)
       ? selectedOptions.filter(id => id !== optionId)
       : [...selectedOptions, optionId]
     
-    // 상태 업데이트와 필터 적용을 동시에 처리
     setSelectedOptions(newOptions)
     
-    // 필터 즉시 적용
+    // 디버깅 로그 추가
+    const filterOptions = {
+      is_recommended: newOptions.includes('is_recommended'),
+      has_discount: newOptions.includes('has_discount'),
+      is_member: newOptions.includes('is_member')
+    }
+    console.log('TreatmentFilter - toggleOption:', {
+      optionId,
+      newOptions,
+      filterOptions
+    })
+    
     onFilterChange({ 
       cityId: selectedLocations.length > 0 ? Number(selectedLocations[0]) : null,
-      options: {
-        is_advertised: newOptions.includes('is_advertised'),
-        has_discount: newOptions.includes('has_discount'),
-        is_member: newOptions.includes('is_member')
-      },
+      options: filterOptions,
       priceRange 
     })
   }
@@ -149,7 +165,7 @@ export function TreatmentFilter({
     onFilterChange({ 
       cityId: selectedLocations.length > 0 ? Number(selectedLocations[0]) : null,
       options: {
-        is_advertised: selectedOptions.includes('is_advertised'),
+        is_recommended: selectedOptions.includes('is_recommended'),
         has_discount: selectedOptions.includes('has_discount'),
         is_member: selectedOptions.includes('is_member')
       },
@@ -164,7 +180,7 @@ export function TreatmentFilter({
     onFilterChange({
       cityId: null, // 선택 해제 시 null
       options: {
-        is_advertised: selectedOptions.includes('is_advertised'),
+        is_recommended: selectedOptions.includes('is_recommended'),
         has_discount: selectedOptions.includes('has_discount'),
         is_member: selectedOptions.includes('is_member')
       },
@@ -179,7 +195,7 @@ export function TreatmentFilter({
     onFilterChange({
       cityId: null,
       options: {
-        is_advertised: false,
+        is_recommended: false,
         has_discount: false,
         is_member: false
       },
@@ -209,21 +225,23 @@ export function TreatmentFilter({
           <div>
             <h4 className="text-sm font-medium mb-3">옵션</h4>
             <div className={`${isMobile ? 'flex gap-4' : 'space-y-2'}`}>
-              {CHECK_OPTIONS.map(option => (
-                <div key={option.id} className="flex items-center space-x-2">
-                  <Checkbox 
-                    id={`${option.id}-${isMobile ? 'mobile' : 'pc'}`}
-                    checked={selectedOptions.includes(option.id)}
-                    onCheckedChange={() => toggleOption(option.id)}
-                  />
-                  <label 
-                    htmlFor={`${option.id}-${isMobile ? 'mobile' : 'pc'}`}
-                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 whitespace-nowrap"
-                  >
-                    {option.label}
-                  </label>
-                </div>
-              ))}
+              {CHECK_OPTIONS
+                .filter(option => !(hideMemberOption && option.id === 'is_member'))
+                .map(option => (
+                  <div key={option.id} className="flex items-center space-x-2">
+                    <Checkbox 
+                      id={`${option.id}-${isMobile ? 'mobile' : 'pc'}`}
+                      checked={selectedOptions.includes(option.id)}
+                      onCheckedChange={() => toggleOption(option.id)}
+                    />
+                    <label 
+                      htmlFor={`${option.id}-${isMobile ? 'mobile' : 'pc'}`}
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 whitespace-nowrap"
+                    >
+                      {option.label}
+                    </label>
+                  </div>
+                ))}
             </div>
           </div>
 
