@@ -2,6 +2,9 @@ import { ClinicCard } from './ClinicCard'
 import { Button } from '@/components/ui/button'
 import { Filter } from 'lucide-react'
 
+// 정렬 옵션 타입 정의
+export type SortOption = 'latest' | 'views' | 'rating' | 'likes'
+
 interface ClinicListProps {
   clinics: ClinicCardProps[]
   totalCount: number
@@ -10,6 +13,8 @@ interface ClinicListProps {
   onLoadMore?: () => void
   className?: string
   onFilterClick?: () => void
+  onSortChange?: (sort: SortOption) => void
+  sortBy: SortOption
 }
 
 export function ClinicList({
@@ -19,7 +24,9 @@ export function ClinicList({
   hasMore = false,
   onLoadMore,
   className = '',
-  onFilterClick
+  onFilterClick,
+  onSortChange,
+  sortBy = 'latest'
 }: ClinicListProps) {
   return (
     <div className={className}>
@@ -42,10 +49,15 @@ export function ClinicList({
           </div>
         </div>
 
-        <select className="h-9 px-3 text-sm border rounded-md bg-background">
-          <option value="recommended">추천순</option>
-          <option value="views">조회순</option>
+        <select 
+          className="h-9 px-3 text-sm border rounded-md bg-background"
+          value={sortBy}
+          onChange={(e) => onSortChange?.(e.target.value as SortOption)}
+        >
           <option value="latest">최신순</option>
+          <option value="views">조회순</option>
+          <option value="rating">평점순</option>
+          <option value="likes">좋아요순</option>
         </select>
       </div>
 

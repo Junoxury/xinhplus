@@ -1,14 +1,28 @@
 import { Slider } from "@/components/ui/slider"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { X } from "lucide-react"
+import { supabase } from '@/lib/supabase'
 
 interface FilterProps {
-  onFilterChange: (filters: any) => void;
+  onFilterChange: (filters: {
+    cityId?: number | null;
+    options: {
+      is_advertised?: boolean;
+      has_discount?: boolean;
+      is_member?: boolean;
+    };
+    priceRange?: number[];
+  }) => void;
   onClose?: () => void;
   isMobile?: boolean;
   showPriceFilter?: boolean;
+}
+
+interface Location {
+  id: string;
+  name: string;
 }
 
 interface CheckOption {
@@ -17,22 +31,10 @@ interface CheckOption {
 }
 
 const CHECK_OPTIONS: CheckOption[] = [
-  { id: 'recommended', label: '추천' },
-  { id: 'discount', label: '할인' },
-  { id: 'member', label: 'Member' },
+  { id: 'is_advertised', label: '추천' },
+  { id: 'has_discount', label: '할인' },
+  { id: 'is_member', label: 'Member' },
 ]
-
-const LOCATIONS = [
-  { id: 'hanoi', name: '하노이' },
-  { id: 'hochiminh', name: '호치민' },
-  { id: 'danang', name: '다낭' },
-  { id: 'haiphong', name: '하이퐁' },
-  { id: 'nhatrang', name: '나트랑' }
-]
-
-const formatPrice = (value: number) => {
-  return `${(value / 1000000).toFixed(0)}M`
-}
 
 export function TreatmentFilter({ 
   onFilterChange, 
@@ -40,9 +42,35 @@ export function TreatmentFilter({
   isMobile = false,
   showPriceFilter = true
 }: FilterProps) {
-  const [priceRange, setPriceRange] = useState([0, 100000000])
+  const [locations, setLocations] = useState<Location[]>([])
   const [selectedLocations, setSelectedLocations] = useState<string[]>([])
+  const [priceRange, setPriceRange] = useState([0, 100000000])
   const [selectedOptions, setSelectedOptions] = useState<string[]>([])
+
+  useEffect(() => {
+    const fetchCities = async () => {
+      const { data, error } = await supabase
+        .from('cities')
+        .select('id, name_vi')
+        .eq('is_active', true)
+        .order('sort_order')
+
+      if (error) {
+        console.error('도시 목록 조회 실패:', error)
+        return
+      }
+
+      // Supabase에서 가져온 데이터를 Location 형식으로 변환
+      const formattedLocations: Location[] = data.map(city => ({
+        id: city.id.toString(),
+        name: city.name_vi
+      }))
+
+      setLocations(formattedLocations)
+    }
+
+    fetchCities()
+  }, [])
 
   const handlePriceChange = (value: number[]) => {
     setPriceRange(value)
@@ -50,38 +78,71 @@ export function TreatmentFilter({
   }
 
   const toggleLocation = (locationId: string) => {
-    setSelectedLocations(prev => {
-      const newLocations = prev.includes(locationId)
-        ? prev.filter(id => id !== locationId)
-        : [...prev, locationId]
-      return newLocations
+    // 새로운 locations 배열을 즉시 생성
+    const newLocations = selectedLocations.includes(locationId)
+      ? [] // 이미 선택된 경우 선택 해제 (빈 배열)
+      : [locationId] // 새로 선택하는 경우 해당 ID만 포함
+
+    // 상태 업데이트와 필터 적용을 동시에 처리
+    setSelectedLocations(newLocations)
+    
+    // 필터 즉시 적용
+    onFilterChange({ 
+      cityId: newLocations.length > 0 ? Number(newLocations[0]) : null,
+      options: {
+        is_advertised: selectedOptions.includes('is_advertised'),
+        has_discount: selectedOptions.includes('has_discount'),
+        is_member: selectedOptions.includes('is_member')
+      },
+      priceRange 
     })
-    updateFilters()
   }
 
   const toggleOption = (optionId: string) => {
-    setSelectedOptions(prev => {
-      const newOptions = prev.includes(optionId)
-        ? prev.filter(id => id !== optionId)
-        : [...prev, optionId]
-      return newOptions
+    // 새로운 options 배열을 즉시 생성
+    const newOptions = selectedOptions.includes(optionId)
+      ? selectedOptions.filter(id => id !== optionId)
+      : [...selectedOptions, optionId]
+    
+    // 상태 업데이트와 필터 적용을 동시에 처리
+    setSelectedOptions(newOptions)
+    
+    // 필터 즉시 적용
+    onFilterChange({ 
+      cityId: selectedLocations.length > 0 ? Number(selectedLocations[0]) : null,
+      options: {
+        is_advertised: newOptions.includes('is_advertised'),
+        has_discount: newOptions.includes('has_discount'),
+        is_member: newOptions.includes('is_member')
+      },
+      priceRange 
     })
-    updateFilters()
   }
 
   const updateFilters = () => {
     onFilterChange({ 
-      priceRange, 
-      locations: selectedLocations,
-      options: selectedOptions 
+      cityId: selectedLocations.length > 0 ? Number(selectedLocations[0]) : null,
+      options: {
+        is_advertised: selectedOptions.includes('is_advertised'),
+        has_discount: selectedOptions.includes('has_discount'),
+        is_member: selectedOptions.includes('is_member')
+      },
+      priceRange 
     })
   }
 
   const removeLocation = (locationId: string) => {
-    setSelectedLocations(prev => {
-      const newLocations = prev.filter(id => id !== locationId)
-      onFilterChange({ priceRange, locations: newLocations })
-      return newLocations
+    setSelectedLocations([]) // 선택 해제 시 빈 배열로 설정
+    
+    // 필터 즉시 적용
+    onFilterChange({
+      cityId: null, // 선택 해제 시 null
+      options: {
+        is_advertised: selectedOptions.includes('is_advertised'),
+        has_discount: selectedOptions.includes('has_discount'),
+        is_member: selectedOptions.includes('is_member')
+      },
+      priceRange
     })
   }
 
@@ -90,9 +151,13 @@ export function TreatmentFilter({
     setSelectedLocations([])
     setSelectedOptions([])
     onFilterChange({
-      priceRange: [0, 100000000],
-      locations: [],
-      options: []
+      cityId: null,
+      options: {
+        is_advertised: false,
+        has_discount: false,
+        is_member: false
+      },
+      priceRange: [0, 100000000]
     })
   }
 
@@ -158,30 +223,8 @@ export function TreatmentFilter({
           {/* 지역 필터 */}
           <div>
             <h4 className="text-sm font-medium mb-3">지역</h4>
-            {/* 선택된 지역 표시 */}
-            {selectedLocations.length > 0 && (
-              <div className="flex flex-wrap gap-1 mb-2">
-                {selectedLocations.map(locationId => {
-                  const location = LOCATIONS.find(l => l.id === locationId)
-                  return (
-                    <Badge 
-                      key={locationId}
-                      variant="secondary" 
-                      className="flex items-center gap-1"
-                    >
-                      {location?.name}
-                      <X 
-                        className="h-3 w-3 cursor-pointer" 
-                        onClick={() => removeLocation(locationId)}
-                      />
-                    </Badge>
-                  )
-                })}
-              </div>
-            )}
-            {/* 지역 선택 버튼들 */}
             <div className="grid grid-cols-2 gap-2">
-              {LOCATIONS.map(location => (
+              {locations.map(location => (
                 <button
                   key={location.id}
                   onClick={() => toggleLocation(location.id)}

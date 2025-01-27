@@ -3,6 +3,12 @@ import Link from 'next/link'
 import { Heart, Star, MapPin } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { useState, useEffect } from 'react'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 interface ClinicCardProps {
   title: string
@@ -11,7 +17,11 @@ interface ClinicCardProps {
   rating: number
   reviewCount: number
   location: string
-  categories: string[]
+  categories: Array<{
+    id: number;
+    name: string;
+    key: string;
+  }>
   isNew?: boolean
   isAd?: boolean
 }
@@ -79,14 +89,22 @@ export function ClinicCard({
 
         {/* 카테고리 태그 */}
         <div className="flex flex-wrap gap-1">
-          {categories.map(category => (
-            <Badge 
-              key={category} 
-              className="bg-pink-50 hover:bg-pink-100 text-pink-500 border-0"
-            >
-              {category}
-            </Badge>
-          ))}
+          <TooltipProvider>
+            {categories.map(category => (
+              <Tooltip key={category.key}>
+                <TooltipTrigger>
+                  <Badge 
+                    className="bg-pink-50 hover:bg-pink-100 text-pink-500 border-0"
+                  >
+                    {category.name}
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>카테고리 ID: {category.id}</p>
+                </TooltipContent>
+              </Tooltip>
+            ))}
+          </TooltipProvider>
         </div>
       </div>
     </div>

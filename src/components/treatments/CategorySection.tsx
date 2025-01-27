@@ -145,7 +145,7 @@ export function CategorySection({
               {bodyParts.map((category) => (
                 <div key={`body-${category.id}`}>
                   <CategoryIcon 
-                    icon={category.icon}
+                    icon="/images/placeholdericon.png"
                     label={category.label}
                     onClick={() => handleCategoryClick(category.id, true)}
                     isSelected={selectedBodyPart === category.id}
@@ -181,7 +181,7 @@ export function CategorySection({
               {treatmentMethods.map((method) => (
                 <div key={`treatment-${method.id}`}>
                   <CategoryIcon 
-                    icon={method.icon}
+                    icon="/images/placeholdericon.png"
                     label={method.label}
                     onClick={() => handleCategoryClick(method.id, false)}
                     isSelected={selectedTreatment === method.id}
@@ -252,7 +252,7 @@ export function CategorySection({
                 className="flex-shrink-0 w-[60px]"
               >
                 <CategoryIcon 
-                  icon={item.icon}
+                  icon="/images/placeholdericon.png"
                   label={item.label}
                   onClick={() => handleMobileCategoryClick(item.id)}
                   isSelected={selectedMobileCategory === item.id}
