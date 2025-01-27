@@ -18,6 +18,8 @@ import { TreatmentCard } from '@/components/treatments/TreatmentCard'
 import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { GoogleMap } from '@/components/map/GoogleMap'
+import { useToast } from "@/hooks/use-toast"
+import { Toast } from "@/components/ui/toast"
 
 // 더미 시술 데이터 수정
 const treatments = [
@@ -355,6 +357,7 @@ export default function TreatmentDetailPage() {
   const searchParams = useSearchParams()
   const hospitalId = searchParams.get('id')
   const [hospital, setHospital] = useState<HospitalDetail | null>(null)
+  const { toast } = useToast()
 
   useEffect(() => {
     const fetchHospital = async () => {
@@ -424,6 +427,26 @@ export default function TreatmentDetailPage() {
       window.scrollTo({
         top: offsetPosition,
         behavior: 'smooth'
+      })
+    }
+  }
+
+  const handleShare = async () => {
+    try {
+      // 현재 URL 복사
+      await navigator.clipboard.writeText(window.location.href)
+      
+      // 토스트 메시지 표시
+      toast({
+        description: "URL이 클립보드에 복사되었습니다.",
+        duration: 2000, // 2초 후 자동으로 사라짐
+      })
+    } catch (error) {
+      console.error('URL 복사 실패:', error)
+      toast({
+        variant: "destructive",
+        description: "URL 복사에 실패했습니다.",
+        duration: 2000,
       })
     }
   }
@@ -586,27 +609,48 @@ export default function TreatmentDetailPage() {
             <div className="md:w-2/3 p-6">
               {/* 소셜 아이콘 */}
               <div className="flex justify-end items-center gap-1 mb-4">
-                <button className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-full transition-colors">
+                <button 
+                  onClick={handleShare}
+                  className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-full transition-colors"
+                >
                   <Share2 className="w-5 h-5 text-gray-600" />
                 </button>
                 <button className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-full transition-colors">
                   <Heart className="w-5 h-5 text-gray-600" />
                 </button>
-                <Link href="#" className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-full transition-colors">
-                  <Home className="w-5 h-5 text-gray-600" />
-                </Link>
-                <Link href="#" className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-full transition-colors">
-                  <Facebook className="w-5 h-5 text-gray-600" />
-                </Link>
-                <Link href="#" className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-full transition-colors">
-                  <Image
-                    src="/images/zalo.svg"
-                    width={20}
-                    height={20}
-                    alt="Zalo"
-                    className="w-5 h-5"
-                  />
-                </Link>
+                {hospital?.website && (
+                  <Link 
+                    href={hospital.website} 
+                    target="_blank" 
+                    className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-full transition-colors"
+                  >
+                    <Home className="w-5 h-5 text-gray-600" />
+                  </Link>
+                )}
+                {hospital?.facebook_url && (
+                  <Link 
+                    href={hospital.facebook_url} 
+                    target="_blank" 
+                    className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-full transition-colors"
+                  >
+                    <Facebook className="w-5 h-5 text-gray-600" />
+                  </Link>
+                )}
+                {hospital?.zalo_id && (
+                  <Link 
+                    href={`https://zalo.me/${hospital.zalo_id}`}
+                    target="_blank" 
+                    className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-full transition-colors"
+                  >
+                    <Image
+                      src="/images/zalo.svg"
+                      width={20}
+                      height={20}
+                      alt="Zalo"
+                      className="w-5 h-5"
+                    />
+                  </Link>
+                )}
               </div>
 
               {/* 제목 */}

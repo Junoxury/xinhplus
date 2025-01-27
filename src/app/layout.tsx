@@ -4,6 +4,7 @@ import "./globals.css";
 import { Header } from '@/components/layout/Header'
 import { Footer } from '@/components/layout/Footer'
 import { MobileNav } from '@/components/layout/MobileNav'
+import { Toaster } from "@/components/ui/toaster"
 
 const notoSans = Noto_Sans({
   subsets: ['latin', 'vietnamese'],
@@ -46,6 +47,7 @@ export default function RootLayout({
         </main>
         <Footer />
         <MobileNav />
+        <Toaster />
       </body>
     </html>
   );
