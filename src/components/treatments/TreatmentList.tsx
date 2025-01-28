@@ -12,6 +12,7 @@ interface TreatmentListProps {
   className?: string;
   onFilterClick?: () => void;
   onSortChange?: (sortBy: 'view_count' | 'like_count' | 'rating' | 'discount_price_asc' | 'discount_price_desc') => void;
+  renderItem: (treatment: any) => React.ReactNode;
 }
 
 export function TreatmentList({ 
@@ -22,7 +23,8 @@ export function TreatmentList({
   onLoadMore,
   className = "",
   onFilterClick,
-  onSortChange
+  onSortChange,
+  renderItem
 }: TreatmentListProps) {
   const sortOptions = [
     { value: 'view_count', label: '조회순' },
@@ -81,10 +83,9 @@ export function TreatmentList({
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {treatments.map((treatment) => (
-          <TreatmentCard 
-            key={`treatment-${treatment.id}`}
-            {...treatment}
-          />
+          <div key={`treatment-${treatment.id}`}>
+            {renderItem(treatment)}
+          </div>
         ))}
       </div>
 

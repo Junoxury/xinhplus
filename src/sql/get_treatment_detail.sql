@@ -32,8 +32,21 @@ CREATE OR REPLACE FUNCTION get_treatment_detail(
     categories jsonb
 ) 
 LANGUAGE plpgsql
+SECURITY DEFINER
 AS $$
+DECLARE
+    v_result RECORD;
 BEGIN
+    -- 조회수 증가 로직
+    BEGIN
+        UPDATE treatments t
+        SET view_count = t.view_count + 1
+        WHERE t.id = p_treatment_id;
+    EXCEPTION WHEN OTHERS THEN
+        RAISE NOTICE 'Failed to increment view count for treatment %: %', p_treatment_id, SQLERRM;
+    END;
+
+    -- 메인 쿼리 실행 및 결과 반환
     RETURN QUERY
     WITH RECURSIVE depth3_categories AS (
         SELECT 

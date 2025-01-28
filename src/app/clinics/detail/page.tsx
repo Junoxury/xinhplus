@@ -4,7 +4,7 @@ import { CategoryIcon } from '@/components/category/CategoryIcon'
 import { TreatmentBanner } from '@/components/treatments/TreatmentBanner'
 import { TreatmentFilter } from '@/components/treatments/TreatmentFilter'
 import { TreatmentList } from '@/components/treatments/TreatmentList'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import bodyPartsData from '@/data/bodyParts.json'
 import treatmentMethodsData from '@/data/treatmentMethods.json'
 import { CategorySection } from '@/components/treatments/CategorySection'
@@ -359,6 +359,15 @@ export default function TreatmentDetailPage() {
   const [hospital, setHospital] = useState<HospitalDetail | null>(null)
   const { toast } = useToast()
 
+  // 대표 시술 상태 추가
+  const [featuredTreatments, setFeaturedTreatments] = useState<Treatment[]>([])
+
+  // 병원의 모든 시술 상태 추가
+  const [allTreatments, setAllTreatments] = useState<Treatment[]>([])
+  const [hasMore, setHasMore] = useState(true)
+  const [page, setPage] = useState(0)
+  const ITEMS_PER_PAGE = 8
+
   useEffect(() => {
     const fetchHospital = async () => {
       if (!hospitalId) return
@@ -568,6 +577,106 @@ export default function TreatmentDetailPage() {
       likes: 112
     }
   ]
+
+  // 병원의 모든 시술 가져오기
+  const fetchAllTreatments = useCallback(async (isLoadMore = false) => {
+    if (!hospital?.id) return
+
+    try {
+      const { data, error } = await supabase
+        .rpc('get_treatments', { 
+          p_city_id: null,
+          p_depth2_category_id: null,
+          p_depth3_category_id: null,
+          p_hospital_id: hospital.id,
+          p_is_advertised: null,
+          p_is_discounted: null,
+          p_is_recommended: null,
+          p_limit: ITEMS_PER_PAGE,
+          p_offset: page * ITEMS_PER_PAGE,
+          p_price_from: null,
+          p_price_to: null,
+          p_sort_by: 'view_count'
+        })
+
+      if (error) {
+        console.error('Error fetching all treatments:', error)
+        return
+      }
+
+      if (data) {
+        // 대표 시술 ID들을 제외한 시술만 필터링
+        const filteredData = data.filter(
+          treatment => !featuredTreatments.some(
+            featured => featured.id === treatment.id
+          )
+        )
+
+        if (isLoadMore) {
+          setAllTreatments(prev => [...prev, ...filteredData])
+        } else {
+          setAllTreatments(filteredData)
+        }
+        setHasMore(data.length === ITEMS_PER_PAGE)
+      }
+
+    } catch (error) {
+      console.error('Error in fetchAllTreatments:', error)
+    }
+  }, [hospital?.id, page, featuredTreatments])
+
+  // 초기 로드
+  useEffect(() => {
+    setPage(0)
+    if (featuredTreatments.length > 0) {
+      fetchAllTreatments()
+    }
+  }, [fetchAllTreatments])
+
+  // 더보기 클릭 시
+  const handleLoadMore = () => {
+    setPage(prev => prev + 1)
+    fetchAllTreatments(true)
+  }
+
+  // 대표 시술 가져오기
+  useEffect(() => {
+    const fetchFeaturedTreatments = async () => {
+      if (!hospital?.id) return
+
+      try {
+        const { data, error } = await supabase
+          .rpc('get_treatments', { 
+            p_city_id: null,
+            p_depth2_category_id: null,
+            p_depth3_category_id: null,
+            p_hospital_id: hospital.id,
+            p_is_advertised: null,
+            p_is_discounted: null,
+            p_is_recommended: null,
+            p_limit: 3,  // 3개만 가져오기
+            p_offset: 0,
+            p_price_from: null,
+            p_price_to: null,
+            p_sort_by: 'view_count'  // 조회수 순으로 정렬
+          })
+
+        if (error) {
+          console.error('Error fetching featured treatments:', error)
+          return
+        }
+
+        if (data) {
+          setFeaturedTreatments(data)
+        }
+
+      } catch (error) {
+        console.error('Error in fetchFeaturedTreatments:', error)
+      }
+    }
+
+    fetchFeaturedTreatments()
+  }, [hospital?.id])
 
   return (
     <main className="min-h-screen bg-gray-50 pb-[72px] md:pb-[88px]">
@@ -847,34 +956,43 @@ export default function TreatmentDetailPage() {
             <div className="md:w-1/3 p-6 border-l">
               <h2 className="text-lg font-bold mb-4">대표 시술</h2>
               <div className="space-y-4">
-                {treatments.slice(0, 3).map((treatment) => (
+                {featuredTreatments.map((treatment) => (
                   <div
                     key={treatment.id}
-                    className="p-4 border rounded-lg hover:border-pink-500 transition-colors cursor-pointer"
+                    className="p-4 border rounded-lg hover:border-pink-500 transition-colors"
                   >
-                    <div className="aspect-[2/1] relative mb-3 rounded-lg overflow-hidden">
-                      <Image
-                        src={treatment.image}
-                        alt={treatment.title}
-                        fill
-                        className="object-cover"
-                      />
-                    </div>
-                    <h3 className="font-medium mb-2">{treatment.title}</h3>
+                    <Link href={`/treatments/detail?id=${treatment.id}`}>
+                      <div className="aspect-[2/1] relative mb-3 rounded-lg overflow-hidden">
+                        <Image
+                          src={treatment.thumbnail_url}
+                          alt={treatment.title}
+                          fill
+                          className="object-cover"
+                        />
+                      </div>
+                      <h3 className="font-medium mb-2 hover:text-pink-500 transition-colors line-clamp-2">
+                        {treatment.title}
+                      </h3>
+                    </Link>
+                    <p className="text-sm text-gray-600 mb-2 line-clamp-2">
+                      {treatment.summary}
+                    </p>
                     <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-600">{treatment.clinic}</span>
                       <div className="flex items-center gap-1">
-                        <span>⭐️ {treatment.rating}</span>
-                        <span className="text-gray-400">({treatment.reviewCount})</span>
+                        <span>⭐️ {treatment.rating.toFixed(1)}</span>
+                        <span className="text-gray-400">({treatment.comment_count})</span>
                       </div>
                     </div>
+                    <div className="text-sm text-gray-500 mt-1 mb-2 line-clamp-1">
+                      {treatment.city_name} - {treatment.hospital_name}
+                    </div>
                     <div className="mt-2 flex items-baseline justify-end gap-2">
-                      <span className="text-red-500 font-bold">{treatment.discountRate}%</span>
+                      <span className="text-red-500 font-bold">{treatment.discount_rate}%</span>
                       <span className="text-gray-400 line-through">
-                        {treatment.originalPrice.toLocaleString()} VND
+                        {treatment.price.toLocaleString()} VND
                       </span>
                       <span className="text-black font-bold">
-                        {(treatment.originalPrice * (1 - treatment.discountRate / 100)).toLocaleString()} VND
+                        {treatment.discount_price.toLocaleString()} VND
                       </span>
                     </div>
                   </div>
@@ -909,32 +1027,38 @@ export default function TreatmentDetailPage() {
         {/* 인기 시술 섹션 */}
         <div id="similar-section" className="bg-white rounded-2xl shadow-sm overflow-hidden p-6 scroll-mt-[112px]">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold">뷰티라이프 성형외과의 다른 시술</h2>
-            <Button variant="ghost" className="text-sm text-muted-foreground h-8 gap-1" asChild>
-              <Link href="/treatments">
-                전체보기
-                <ChevronRight className="h-4 w-4" />
-              </Link>
-            </Button>
+            <h2 className="text-2xl font-bold">{hospital?.hospital_name}의 다른 시술</h2>
           </div>
-          <div className="hidden md:block">
-            <HorizontalScroll>
-              <div className="flex gap-4">
-                {popularTreatments.map((treatment) => (
-                  <div key={treatment.id} className="w-[300px] flex-shrink-0">
-                    <TreatmentCard {...treatment} />
-                  </div>
-                ))}
-              </div>
-            </HorizontalScroll>
-          </div>
-          <div className="md:hidden flex flex-col gap-4">
-            {popularTreatments.map((treatment) => (
+          {/* PC 버전 - 4열 그리드로 변경 */}
+          <div className="hidden md:grid grid-cols-4 gap-4">
+            {allTreatments.map((treatment) => (
               <div key={treatment.id}>
                 <TreatmentCard {...treatment} />
               </div>
             ))}
           </div>
+          {/* 모바일 버전은 그대로 유지 */}
+          <div className="md:hidden flex flex-col gap-4">
+            {allTreatments.map((treatment) => (
+              <div key={treatment.id}>
+                <TreatmentCard {...treatment} />
+              </div>
+            ))}
+          </div>
+
+          {/* 더보기 버튼 */}
+          {hasMore && (
+            <div className="flex justify-center mt-8">
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={handleLoadMore}
+                className="w-full max-w-[200px]"
+              >
+                더보기
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 

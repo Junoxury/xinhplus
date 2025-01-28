@@ -8,6 +8,8 @@ import { TreatmentList } from '@/components/treatments/TreatmentList'
 import bodyPartsData from '@/data/bodyParts.json'
 import treatmentMethodsData from '@/data/treatmentMethods.json'
 import { CategorySection } from '@/components/treatments/CategorySection'
+import Link from 'next/link'
+import { TreatmentCard } from '@/components/treatments/TreatmentCard'
 
 // 시술 데이터 타입 정의
 interface Treatment {
@@ -336,6 +338,11 @@ export default function TreatmentPage() {
               onFilterClick={() => toggleMobileFilter(true)}
               onSortChange={handleSortChange}
               totalCount={totalCount}
+              renderItem={(treatment) => (
+                <Link href={`/treatments/detail?id=${treatment.id}`}>
+                  <TreatmentCard {...treatment} />
+                </Link>
+              )}
             />
           </div>
         </div>
@@ -351,6 +358,11 @@ export default function TreatmentPage() {
             onFilterClick={() => toggleMobileFilter(true)}
             onSortChange={handleSortChange}
             totalCount={totalCount}
+            renderItem={(treatment) => (
+              <Link href={`/treatments/detail?id=${treatment.id}`}>
+                <TreatmentCard {...treatment} />
+              </Link>
+            )}
           />
 
           {showMobileFilter && (

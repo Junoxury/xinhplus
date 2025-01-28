@@ -301,6 +301,25 @@ function HorizontalScroll({ children }: { children: React.ReactNode }) {
   )
 }
 
+interface Treatment {
+  id: number
+  hospital_id: number
+  hospital_name: string
+  title: string
+  summary: string
+  thumbnail_url: string
+  price: number
+  discount_price: number
+  discount_rate: number
+  rating: number
+  comment_count: number
+  view_count: number
+  like_count: number
+  is_advertised: boolean
+  is_recommended: boolean
+  is_discounted: boolean
+}
+
 interface TreatmentDetail {
   id: number
   hospital_id: number
@@ -340,37 +359,57 @@ export default function TreatmentDetailPage() {
   const searchParams = useSearchParams()
   const id = searchParams.get('id')
   const [treatment, setTreatment] = useState<TreatmentDetail | null>(null)
+  const [otherTreatments, setOtherTreatments] = useState<Treatment[]>([])  // 타입 지정
   const [showFullImage, setShowFullImage] = useState(false)
   const [activeTab, setActiveTab] = useState('detail-section')
   const tabRef = useRef<HTMLDivElement>(null)
   const tabContainerRef = useRef<HTMLDivElement>(null)
+  const [selectedDepth2Id, setSelectedDepth2Id] = useState<number | null>(null)
+  const [similarTreatments, setSimilarTreatments] = useState<Treatment[]>([])
+  const [loading, setLoading] = useState(false)
+  const isFirstRender = useRef(true)
 
-  useEffect(() => {
-    const fetchTreatmentDetail = async () => {
-      if (!id) return
+  // 페이지 데이터 fetch 함수
+  const fetchTreatmentDetail = async (treatmentId: string) => {
+    if (!treatmentId) return
+    if (loading) return
 
-      try {
-        const { data, error } = await supabase
-          .rpc('get_treatment_detail', { 
-            p_treatment_id: Number(id) 
-          })
+    try {
+      setLoading(true)
+      const { data, error } = await supabase
+        .rpc('get_treatment_detail', { 
+          p_treatment_id: Number(treatmentId) 
+        })
 
-        if (error) {
-          console.error('Error fetching treatment detail:', error)
-          return
-        }
-
-        if (data && data.length > 0) {
-          setTreatment(data[0])
-        }
-
-      } catch (error) {
-        console.error('Error in fetchTreatmentDetail:', error)
+      if (error) {
+        console.error('Error fetching treatment detail:', error)
+        return
       }
-    }
 
-    fetchTreatmentDetail()
+      if (data && data.length > 0) {
+        setTreatment(data[0])
+        // 페이지 최상단으로 스크롤
+        window.scrollTo(0, 0)
+      }
+
+    } catch (error) {
+      console.error('Error in fetchTreatmentDetail:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // id가 변경될 때마다 데이터 다시 불러오기
+  useEffect(() => {
+    if (id) {
+      fetchTreatmentDetail(id)
+    }
   }, [id])
+
+  // 같은 종류 시술 클릭 핸들러
+  const handleTreatmentClick = (treatmentId: number) => {
+    fetchTreatmentDetail(treatmentId.toString())
+  }
 
   useEffect(() => {
     const handleScroll = () => {
@@ -403,6 +442,95 @@ export default function TreatmentDetailPage() {
     window.addEventListener('scroll', handleScroll)
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
+
+  // 병원의 다른 시술 가져오기
+  useEffect(() => {
+    const fetchOtherTreatments = async () => {
+      if (!treatment?.hospital_id) return
+
+      try {
+        const { data, error } = await supabase
+          .rpc('get_treatments', { 
+            p_city_id: null,
+            p_depth2_category_id: null,
+            p_depth3_category_id: null,
+            p_hospital_id: treatment.hospital_id,
+            p_is_advertised: null,
+            p_is_discounted: null,
+            p_is_recommended: null,
+            p_limit: 3,
+            p_offset: 0,
+            p_price_from: null,
+            p_price_to: null,
+            p_sort_by: 'view_count'
+          })
+
+        if (error) {
+          console.error('Error fetching other treatments:', error)
+          return
+        }
+
+        if (data) {
+          setOtherTreatments(
+            (data as Treatment[]).filter(t => t.id !== treatment.id)
+          )
+        }
+
+      } catch (error) {
+        console.error('Error in fetchOtherTreatments:', error)
+      }
+    }
+
+    fetchOtherTreatments()
+  }, [treatment?.hospital_id])
+
+  useEffect(() => {
+    // 첫 번째 depth2 카테고리 ID로 초기화
+    if (treatment?.categories && treatment.categories.length > 0) {
+      setSelectedDepth2Id(treatment.categories[0].depth2_id)
+    }
+  }, [treatment])
+
+  // 비슷한 시술 가져오기
+  useEffect(() => {
+    const fetchSimilarTreatments = async () => {
+      if (!selectedDepth2Id) return
+
+      try {
+        const { data, error } = await supabase
+          .rpc('get_treatments', { 
+            p_city_id: null,
+            p_depth2_category_id: selectedDepth2Id,
+            p_depth3_category_id: null,
+            p_hospital_id: null,
+            p_is_advertised: null,
+            p_is_discounted: null,
+            p_is_recommended: null,
+            p_limit: 5,
+            p_offset: 0,
+            p_price_from: null,
+            p_price_to: null,
+            p_sort_by: 'view_count'
+          })
+
+        if (error) {
+          console.error('Error fetching similar treatments:', error)
+          return
+        }
+
+        if (data) {
+          setSimilarTreatments(
+            (data as Treatment[]).filter(t => t.id !== treatment?.id)
+          )
+        }
+
+      } catch (error) {
+        console.error('Error in fetchSimilarTreatments:', error)
+      }
+    }
+
+    fetchSimilarTreatments()
+  }, [selectedDepth2Id, treatment?.id])
 
   const scrollToSection = (sectionId: string) => {
     const element = document.getElementById(sectionId)
@@ -542,335 +670,370 @@ export default function TreatmentDetailPage() {
   if (!treatment) return null
 
   return (
-    <main className="min-h-screen bg-gray-50 pb-[72px] md:pb-[88px]">
-      <TreatmentBanner />
-      <div className="container mx-auto px-4 py-8 space-y-8">
-        <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-          <div className="flex flex-col md:flex-row">
-            {/* 좌측 이미지 - 2:1 비율 */}
-            <div className="md:w-1/3 relative">
-              <div className="aspect-[2/1]">
-                <Image
-                  src={treatment.thumbnail_url}
-                  alt={treatment.title}
-                  fill
-                  className="object-cover"
-                />
-              </div>
-            </div>
-
-            {/* 우측 상세 정보 */}
-            <div className="md:w-2/3 p-6">
-              {/* 소셜 아이콘 */}
-              <div className="flex justify-end items-center gap-1 mb-4">
-                <button className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-full transition-colors">
-                  <Share2 className="w-5 h-5 text-gray-600" />
-                </button>
-                <button className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-full transition-colors">
-                  <Heart className="w-5 h-5 text-gray-600" />
-                </button>
-                {treatment.website && (
-                  <a 
-                    href={treatment.website}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-full transition-colors"
-                  >
-                    <Home className="w-5 h-5 text-gray-600" />
-                  </a>
-                )}
-                {treatment.facebook_url && (
-                  <a 
-                    href={treatment.facebook_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-full transition-colors"
-                  >
-                    <Facebook className="w-5 h-5 text-gray-600" />
-                  </a>
-                )}
-                {treatment.zalo_id && (
-                  <a 
-                    href={`https://zalo.me/${treatment.zalo_id}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-full transition-colors"
-                  >
-                    <Image
-                      src="/images/zalo.svg"
-                      width={20}
-                      height={20}
-                      alt="Zalo"
-                      className="w-5 h-5"
-                    />
-                  </a>
-                )}
-              </div>
-
-              {/* 제목 */}
-              <h1 className="text-2xl font-bold mb-4">{treatment.title}</h1>
-
-              {/* 위치, 평점 */}
-              <div className="flex items-center gap-2 text-gray-600 mb-4">
-                <span>{treatment.city_name} - {treatment.hospital_name}</span>
-                <span>•</span>
-                <span className="flex items-center">
-                  ⭐️ {treatment.rating.toFixed(1)}
-                  <span className="text-gray-400 ml-1">({treatment.comment_count})</span>
-                </span>
-              </div>
-
-              {/* 요약 설명 */}
-              <div className="mb-6 text-gray-600">
-                <p className="leading-relaxed">{treatment.summary}</p>
-              </div>
-
-              {/* 카테고리 태그 */}
-              <div className="space-y-3">
-                {treatment.categories?.map((category) => (
-                  <div key={category.depth2_id} className="flex flex-wrap items-center gap-2">
-                    {/* Depth2 카테고리 */}
-                    <span className="px-3 py-1.5 rounded-full bg-pink-500 text-white text-sm">
-                      {category.depth2_name}
-                    </span>
-
-                    {/* Depth3 카테고리들 */}
-                    <div className="flex flex-wrap gap-2">
-                      {category.depth3_list?.map((depth3) => (
-                        <span 
-                          key={depth3.id}
-                          className="px-3 py-1.5 rounded-full bg-pink-100 text-pink-500 text-sm"
-                        >
-                          {depth3.name}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* 가격 정보 */}
-              <div className="flex items-baseline justify-end gap-4">
-                <div className="flex items-center gap-2">
-                  <span className="text-red-500 font-bold text-xl">
-                    {treatment.discount_rate}%
-                  </span>
-                  <span className="text-gray-400 line-through">
-                    {treatment.price.toLocaleString()} VND
-                  </span>
+    <div key={id}>
+      <main className="min-h-screen bg-gray-50 pb-[72px] md:pb-[88px]">
+        <TreatmentBanner />
+        <div className="container mx-auto px-4 py-8 space-y-8">
+          <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+            <div className="flex flex-col md:flex-row">
+              {/* 좌측 이미지 - 2:1 비율 */}
+              <div className="md:w-1/3 relative">
+                <div className="aspect-[2/1]">
+                  <Image
+                    src={treatment.thumbnail_url}
+                    alt={treatment.title}
+                    fill
+                    className="object-cover"
+                  />
                 </div>
-                <span className="text-black text-3xl font-bold">
-                  {treatment.discount_price.toLocaleString()} VND
-                </span>
               </div>
-            </div>
-          </div>
-        </div>
-        {/* 탭 메뉴 컨테이너 */}
-        <div ref={tabContainerRef} className="sticky top-[56px] bg-white z-[100]">
-          {/* 탭 메뉴 */}
-          <div ref={tabRef} className="container mx-auto px-4">
-            <div className="flex w-full border border-gray-300">
-              <div 
-                onClick={() => scrollToSection('detail-section')}
-                className={`flex-1 text-center py-4 cursor-pointer border-r border-gray-300 hover:bg-blue-600 transition-colors
-                  ${activeTab === 'detail-section' ? 'bg-blue-500 text-white' : 'text-gray-800 hover:bg-gray-100'}`}
-              >
-                상세설명
-              </div>
-              <div 
-                onClick={() => scrollToSection('review-section')}
-                className={`flex-1 text-center py-4 cursor-pointer border-r border-gray-300 hover:bg-blue-600 transition-colors
-                  ${activeTab === 'review-section' ? 'bg-blue-500 text-white' : 'text-gray-800 hover:bg-gray-100'}`}
-              >
-                후기
-              </div>
-              <div 
-                onClick={() => scrollToSection('similar-section')}
-                className={`flex-1 text-center py-4 cursor-pointer hover:bg-blue-600 transition-colors
-                  ${activeTab === 'similar-section' ? 'bg-blue-500 text-white' : 'text-gray-800 hover:bg-gray-100'}`}
-              >
-                같은 종류 시술
-              </div>
-            </div>
-          </div>
-        </div>
-        {/* 상세 설명 섹션 */}
-        <div id="detail-section" className="bg-white rounded-2xl shadow-sm overflow-hidden scroll-mt-[112px]">
-          <div className="flex flex-col md:flex-row">
-            {/* 좌측 상세 설명 HTML */}
-            <div className="md:w-2/3 relative">
-              <div className={`relative ${!showFullImage ? 'h-[800px]' : ''} overflow-hidden`}>
-                <div 
-                  className="w-full"
-                  dangerouslySetInnerHTML={{ __html: treatment.detail_content }}
-                />
-                {!showFullImage && (
-                  <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-white to-transparent" />
-                )}
-              </div>
-              {!showFullImage && (
-                <div className="absolute bottom-4 left-0 right-0 flex justify-center">
-                  <Button
-                    onClick={() => setShowFullImage(true)}
-                    variant="outline"
-                    className="bg-white shadow-md"
-                  >
-                    더보기 <ChevronDown className="ml-2 h-4 w-4" />
-                  </Button>
-                </div>
-              )}
-            </div>
 
-            {/* 우측 관련 시술 카드 */}
-            <div className="md:w-1/3 p-6 border-l">
-              <h2 className="text-lg font-bold mb-4">병원의 다른 시술</h2>
-              <div className="space-y-4">
-                {treatments.slice(0, 3).map((treatment) => (
-                  <div
-                    key={treatment.id}
-                    className="p-4 border rounded-lg hover:border-pink-500 transition-colors cursor-pointer"
-                  >
-                    <div className="aspect-[2/1] relative mb-3 rounded-lg overflow-hidden">
+              {/* 우측 상세 정보 */}
+              <div className="md:w-2/3 p-6">
+                {/* 소셜 아이콘 */}
+                <div className="flex justify-end items-center gap-1 mb-4">
+                  <button className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-full transition-colors">
+                    <Share2 className="w-5 h-5 text-gray-600" />
+                  </button>
+                  <button className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-full transition-colors">
+                    <Heart className="w-5 h-5 text-gray-600" />
+                  </button>
+                  {treatment.website && (
+                    <a 
+                      href={treatment.website}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-full transition-colors"
+                    >
+                      <Home className="w-5 h-5 text-gray-600" />
+                    </a>
+                  )}
+                  {treatment.facebook_url && (
+                    <a 
+                      href={treatment.facebook_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-full transition-colors"
+                    >
+                      <Facebook className="w-5 h-5 text-gray-600" />
+                    </a>
+                  )}
+                  {treatment.zalo_id && (
+                    <a 
+                      href={`https://zalo.me/${treatment.zalo_id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-full transition-colors"
+                    >
                       <Image
-                        src={treatment.image}
-                        alt={treatment.title}
-                        fill
-                        className="object-cover"
+                        src="/images/zalo.svg"
+                        width={20}
+                        height={20}
+                        alt="Zalo"
+                        className="w-5 h-5"
                       />
-                    </div>
-                    <h3 className="font-medium mb-2">{treatment.title}</h3>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-600">{treatment.clinic}</span>
-                      <div className="flex items-center gap-1">
-                        <span>⭐️ {treatment.rating}</span>
-                        <span className="text-gray-400">({treatment.reviewCount})</span>
+                    </a>
+                  )}
+                </div>
+
+                {/* 제목 */}
+                <h1 className="text-2xl font-bold mb-4">{treatment.title}</h1>
+
+                {/* 위치, 평점 */}
+                <div className="flex items-center gap-2 text-gray-600 mb-4">
+                  <span>{treatment.city_name} - {treatment.hospital_name}</span>
+                  <span>•</span>
+                  <span className="flex items-center">
+                    ⭐️ {treatment.rating.toFixed(1)}
+                    <span className="text-gray-400 ml-1">({treatment.comment_count})</span>
+                  </span>
+                </div>
+
+                {/* 요약 설명 */}
+                <div className="mb-6 text-gray-600">
+                  <p className="leading-relaxed">{treatment.summary}</p>
+                </div>
+
+                {/* 카테고리 태그 */}
+                <div className="space-y-3">
+                  {treatment.categories?.map((category) => (
+                    <div key={category.depth2_id} className="flex flex-wrap items-center gap-2">
+                      {/* Depth2 카테고리 */}
+                      <span className="px-3 py-1.5 rounded-full bg-pink-500 text-white text-sm">
+                        {category.depth2_name}
+                      </span>
+
+                      {/* Depth3 카테고리들 */}
+                      <div className="flex flex-wrap gap-2">
+                        {category.depth3_list?.map((depth3) => (
+                          <span 
+                            key={depth3.id}
+                            className="px-3 py-1.5 rounded-full bg-pink-100 text-pink-500 text-sm"
+                          >
+                            {depth3.name}
+                          </span>
+                        ))}
                       </div>
                     </div>
-                    <div className="mt-2 flex items-baseline justify-end gap-2">
-                      <span className="text-red-500 font-bold">{treatment.discountRate}%</span>
-                      <span className="text-gray-400 line-through">
-                        {treatment.originalPrice.toLocaleString()} VND
-                      </span>
-                      <span className="text-black font-bold">
-                        {(treatment.originalPrice * (1 - treatment.discountRate / 100)).toLocaleString()} VND
-                      </span>
-                    </div>
+                  ))}
+                </div>
+
+                {/* 가격 정보 */}
+                <div className="flex items-baseline justify-end gap-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-red-500 font-bold text-xl">
+                      {treatment.discount_rate}%
+                    </span>
+                    <span className="text-gray-400 line-through">
+                      {treatment.price.toLocaleString()} VND
+                    </span>
                   </div>
-                ))}
+                  <span className="text-black text-3xl font-bold">
+                    {treatment.discount_price.toLocaleString()} VND
+                  </span>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-
-        {/* 리뷰 섹션 */}
-        <div id="review-section" className="bg-white rounded-2xl shadow-sm overflow-hidden p-6 scroll-mt-[112px]">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold">실시간 후기</h2>
-            <Button variant="ghost" className="text-sm text-muted-foreground h-8 gap-1" asChild>
-              <Link href="/reviews">
-                전체보기
-                <ChevronRight className="h-4 w-4" />
-              </Link>
-            </Button>
-          </div>
-          <HorizontalScroll>
-            <div className="flex gap-4">
-              {recentReviews.map((review) => (
-                <div key={review.id} className="w-[85vw] md:w-[600px] flex-shrink-0 relative z-[1]">
-                  <ReviewCard {...review} />
+          {/* 탭 메뉴 컨테이너 */}
+          <div ref={tabContainerRef} className="sticky top-[56px] bg-white z-[100]">
+            {/* 탭 메뉴 */}
+            <div ref={tabRef} className="container mx-auto px-4">
+              <div className="flex w-full border border-gray-300">
+                <div 
+                  onClick={() => scrollToSection('detail-section')}
+                  className={`flex-1 text-center py-4 cursor-pointer border-r border-gray-300 hover:bg-blue-600 transition-colors
+                    ${activeTab === 'detail-section' ? 'bg-blue-500 text-white' : 'text-gray-800 hover:bg-gray-100'}`}
+                >
+                  상세설명
                 </div>
-              ))}
+                <div 
+                  onClick={() => scrollToSection('review-section')}
+                  className={`flex-1 text-center py-4 cursor-pointer border-r border-gray-300 hover:bg-blue-600 transition-colors
+                    ${activeTab === 'review-section' ? 'bg-blue-500 text-white' : 'text-gray-800 hover:bg-gray-100'}`}
+                >
+                  후기
+                </div>
+                <div 
+                  onClick={() => scrollToSection('similar-section')}
+                  className={`flex-1 text-center py-4 cursor-pointer hover:bg-blue-600 transition-colors
+                    ${activeTab === 'similar-section' ? 'bg-blue-500 text-white' : 'text-gray-800 hover:bg-gray-100'}`}
+                >
+                  같은 종류 시술
+                </div>
+              </div>
             </div>
-          </HorizontalScroll>
-        </div>
-
-        {/* 인기 시술 섹션 */}
-        <div id="similar-section" className="bg-white rounded-2xl shadow-sm overflow-hidden p-6 scroll-mt-[112px]">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold">같은 종류 시술</h2>
-            <Button variant="ghost" className="text-sm text-muted-foreground h-8 gap-1" asChild>
-              <Link href="/treatments">
-                전체보기
-                <ChevronRight className="h-4 w-4" />
-              </Link>
-            </Button>
           </div>
-          <div className="hidden md:block">
+          {/* 상세 설명 섹션 */}
+          <div id="detail-section" className="bg-white rounded-2xl shadow-sm overflow-hidden scroll-mt-[112px]">
+            <div className="flex flex-col md:flex-row">
+              {/* 좌측 상세 설명 HTML */}
+              <div className="md:w-2/3">
+                <div className="p-6">
+                  <div 
+                    className="w-full prose max-w-none"
+                    dangerouslySetInnerHTML={{ __html: treatment.detail_content }}
+                  />
+                </div>
+              </div>
+
+              {/* 우측 관련 시술 카드 */}
+              <div className="md:w-1/3 p-6 border-l">
+                <h2 className="text-lg font-bold mb-4">병원의 다른 시술</h2>
+                <div className="space-y-4">
+                  {otherTreatments.length > 0 ? (
+                    otherTreatments.map((treatment) => (
+                      <div
+                        key={treatment.id}
+                        className="p-4 border rounded-lg hover:border-pink-500 transition-colors"
+                      >
+                        <Link href={`/treatments/detail?id=${treatment.id}`}>
+                          <div className="aspect-[2/1] relative mb-3 rounded-lg overflow-hidden">
+                            <Image
+                              src={treatment.thumbnail_url}
+                              alt={treatment.title}
+                              fill
+                              className="object-cover"
+                            />
+                          </div>
+                          <h3 className="font-medium mb-2 hover:text-pink-500 transition-colors">
+                            {treatment.title}
+                          </h3>
+                        </Link>
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-600">{treatment.hospital_name}</span>
+                          <div className="flex items-center gap-1">
+                            <span>⭐️ {treatment.rating.toFixed(1)}</span>
+                            <span className="text-gray-400">({treatment.comment_count})</span>
+                          </div>
+                        </div>
+                        <div className="mt-2 flex items-baseline justify-end gap-2">
+                          <span className="text-red-500 font-bold">{treatment.discount_rate}%</span>
+                          <span className="text-gray-400 line-through">
+                            {treatment.price.toLocaleString()} VND
+                          </span>
+                          <span className="text-black font-bold">
+                            {treatment.discount_price.toLocaleString()} VND
+                          </span>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-8">
+                      <div className="mb-4 text-gray-500">
+                        아직 등록된 Beauty가 없어요.
+                        <br />
+                        먼저 등록하세요!
+                      </div>
+                      <Button 
+                        variant="default"
+                        className="bg-pink-500 hover:bg-pink-600 text-white gap-2"
+                        asChild
+                      >
+                        <Link href="/contact">
+                          <MessageCircle className="w-4 h-4" />
+                          Contact Us
+                        </Link>
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 리뷰 섹션 */}
+          <div id="review-section" className="bg-white rounded-2xl shadow-sm overflow-hidden p-6 scroll-mt-[112px]">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold">실시간 후기</h2>
+              <Button variant="ghost" className="text-sm text-muted-foreground h-8 gap-1" asChild>
+                <Link href="/reviews">
+                  전체보기
+                  <ChevronRight className="h-4 w-4" />
+                </Link>
+              </Button>
+            </div>
             <HorizontalScroll>
               <div className="flex gap-4">
-                {popularTreatments.map((treatment) => (
-                  <div key={treatment.id} className="w-[300px] flex-shrink-0">
-                    <TreatmentCard {...treatment} />
+                {recentReviews.map((review) => (
+                  <div key={review.id} className="w-[85vw] md:w-[600px] flex-shrink-0 relative z-[1]">
+                    <ReviewCard {...review} />
                   </div>
                 ))}
               </div>
             </HorizontalScroll>
           </div>
-          <div className="md:hidden flex flex-col gap-4">
-            {popularTreatments.map((treatment) => (
-              <div key={treatment.id}>
-                <TreatmentCard {...treatment} />
+
+          {/* 같은 종류 시술 섹션 */}
+          <div id="similar-section" className="bg-white rounded-2xl shadow-sm overflow-hidden p-6 scroll-mt-[112px]">
+            <div className="flex flex-col space-y-6">
+              {/* 헤더 */}
+              <div className="flex items-center gap-4">
+                <h2 className="text-2xl font-bold">같은 종류 시술</h2>
+                <div className="flex gap-2 overflow-x-auto scrollbar-hide">
+                  {treatment.categories?.map((category) => (
+                    <button
+                      key={category.depth2_id}
+                      onClick={() => setSelectedDepth2Id(category.depth2_id)}
+                      className={`px-4 py-2 rounded-full text-sm whitespace-nowrap transition-colors
+                        ${selectedDepth2Id === category.depth2_id 
+                          ? 'bg-pink-500 text-white' 
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                    >
+                      {category.depth2_name}
+                    </button>
+                  ))}
+                </div>
               </div>
-            ))}
+
+              {/* 시술 목록 */}
+              <div className="hidden md:block">
+                <HorizontalScroll>
+                  <div className="flex gap-4">
+                    {similarTreatments.map((treatment) => (
+                      <div key={treatment.id} className="w-[300px] flex-shrink-0">
+                        <Link 
+                          href={`/treatments/detail?id=${treatment.id}`}
+                          onClick={() => handleTreatmentClick(treatment.id)}
+                        >
+                          <TreatmentCard {...treatment} />
+                        </Link>
+                      </div>
+                    ))}
+                  </div>
+                </HorizontalScroll>
+              </div>
+              <div className="md:hidden flex flex-col gap-4">
+                {similarTreatments.map((treatment) => (
+                  <div key={treatment.id}>
+                    <Link 
+                      href={`/treatments/detail?id=${treatment.id}`}
+                      onClick={() => handleTreatmentClick(treatment.id)}
+                    >
+                      <TreatmentCard {...treatment} />
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* 플로팅 아이콘 */}
-      <div className="fixed right-4 bottom-[140px] md:bottom-24 flex flex-col gap-3 z-[100]">
-        {/* 상담신청 아이콘 */}
-        <button 
-          className="w-12 h-12 bg-pink-500 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-pink-600 transition-colors"
-        >
-          <MessageCircle className="w-5 h-5" />
-        </button>
-
-        {/* Zalo 아이콘 */}
-        <a 
-          href="#" 
-          className="w-12 h-12 bg-blue-500 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-blue-600 transition-colors"
-        >
-          <Image
-            src="/images/zalo.svg"
-            width={24}
-            height={24}
-            alt="Zalo"
-            className="w-6 h-6"
-          />
-        </a>
-
-        {/* 전화 아이콘 - 모바일에서만 표시 */}
-        <a 
-          href="tel:+84123456789" 
-          className="md:hidden w-12 h-12 bg-green-500 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-green-600 transition-colors"
-        >
-          <Phone className="w-5 h-5" />
-        </a>
-      </div>
-
-      {/* 하단 고정 버튼 */}
-      <div className="fixed bottom-[56px] md:bottom-0 left-0 right-0 bg-white border-t z-[100] safe-area-bottom">
-        <div className="container mx-auto px-4 py-3 flex gap-2">
-          <Link 
-            href="#" 
-            className="flex-1 px-4 py-3 bg-pink-500 text-white rounded-lg text-center font-medium hover:bg-pink-600 transition-colors text-sm md:text-base"
-          >
-            병원 바로가기
-          </Link>
-          <Link 
-            href="#" 
-            className="flex-1 px-4 py-3 bg-violet-500 text-white rounded-lg text-center font-medium hover:bg-violet-600 transition-colors text-sm md:text-base"
-          >
-            리뷰쓰기
-          </Link>
+        {/* 플로팅 아이콘 */}
+        <div className="fixed right-4 bottom-[140px] md:bottom-24 flex flex-col gap-3 z-[100]">
+          {/* 상담신청 아이콘 */}
           <button 
-            className="flex-1 px-4 py-3 bg-blue-500 text-white rounded-lg text-center font-medium hover:bg-blue-600 transition-colors text-sm md:text-base"
+            className="w-12 h-12 bg-pink-500 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-pink-600 transition-colors"
           >
-            상담신청
+            <MessageCircle className="w-5 h-5" />
           </button>
+
+          {/* Zalo 아이콘 */}
+          <a 
+            href="#" 
+            className="w-12 h-12 bg-blue-500 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-blue-600 transition-colors"
+          >
+            <Image
+              src="/images/zalo.svg"
+              width={24}
+              height={24}
+              alt="Zalo"
+              className="w-6 h-6"
+            />
+          </a>
+
+          {/* 전화 아이콘 - 모바일에서만 표시 */}
+          <a 
+            href="tel:+84123456789" 
+            className="md:hidden w-12 h-12 bg-green-500 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-green-600 transition-colors"
+          >
+            <Phone className="w-5 h-5" />
+          </a>
         </div>
-      </div>
-    </main>
+
+        {/* 하단 고정 버튼 */}
+        <div className="fixed bottom-[56px] md:bottom-0 left-0 right-0 bg-white border-t z-[100] safe-area-bottom">
+          <div className="container mx-auto px-4 py-3 flex gap-2">
+            <Link 
+              href={`/clinics/detail?id=${treatment.hospital_id}`}
+              className="flex-1 px-4 py-3 bg-pink-500 text-white rounded-lg text-center font-medium hover:bg-pink-600 transition-colors text-sm md:text-base"
+            >
+              병원 바로가기
+            </Link>
+            <Link 
+              href="#" 
+              className="flex-1 px-4 py-3 bg-violet-500 text-white rounded-lg text-center font-medium hover:bg-violet-600 transition-colors text-sm md:text-base"
+            >
+              리뷰쓰기
+            </Link>
+            <button 
+              className="flex-1 px-4 py-3 bg-blue-500 text-white rounded-lg text-center font-medium hover:bg-blue-600 transition-colors text-sm md:text-base"
+            >
+              상담신청
+            </button>
+          </div>
+        </div>
+      </main>
+    </div>
   )
 } 

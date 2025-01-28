@@ -38,7 +38,18 @@ RETURNS TABLE (
     created_at timestamptz,
     updated_at timestamptz
 ) AS $$
+DECLARE
+    v_result RECORD;
 BEGIN
+    -- 조회수 증가 로직
+    BEGIN
+        UPDATE hospitals t
+        SET view_count = t.view_count + 1
+        WHERE t.id = p_hospital_id;
+    EXCEPTION WHEN OTHERS THEN
+        RAISE NOTICE 'Failed to increment view count for hospital %: %', p_hospital_id, SQLERRM;
+    END;
+
     RETURN QUERY
     WITH RECURSIVE depth3_categories AS (
         SELECT 

@@ -50,16 +50,4 @@
     CREATE INDEX idx_treatment_categories_depth2 ON treatment_categories(depth2_category_id);
     CREATE INDEX idx_treatment_categories_depth3 ON treatment_categories(depth3_category_id);
 
-    -- updated_at 자동 갱신을 위한 트리거
-    CREATE OR REPLACE FUNCTION update_updated_at_column()
-    RETURNS TRIGGER AS $$
-    BEGIN
-        NEW.updated_at = now();
-        RETURN NEW;
-    END;
-    $$ language 'plpgsql';
-
-    CREATE TRIGGER update_treatments_updated_at
-        BEFORE UPDATE ON treatments
-        FOR EACH ROW
-        EXECUTE FUNCTION update_updated_at_column();
+    
