@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { BlogCard } from '@/components/blog/BlogCard'
 import { supabase } from "@/lib/supabase";
+import Link from 'next/link'
 
 interface Tag {
   id: number;
@@ -197,22 +198,27 @@ export default function PostsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {posts.length > 0 ? (
             posts.map((post) => (
-              <BlogCard 
+              <Link 
                 key={post.id}
-                id={post.id.toString()}
-                title={post.title}
-                content={stripMarkdownAndHtml(post.content)}
-                thumbnail={post.thumbnail_url}
-                author={{
-                  name: post.author_name || 'Unknown',
-                  avatar: post.author_avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=1'
-                }}
-                date={new Date(post.created_at).toLocaleDateString()}
-                tags={post.tags.map(t => t.name)}
-                likes={post.like_count}
-                comments={post.comment_count}
-                views={post.view_count}
-              />
+                href={`/posts/detail?id=${post.id}`}
+                className="block hover:opacity-95 transition-opacity"
+              >
+                <BlogCard 
+                  id={post.id.toString()}
+                  title={post.title}
+                  content={stripMarkdownAndHtml(post.content)}
+                  thumbnail={post.thumbnail_url}
+                  author={{
+                    name: post.author_name || 'Unknown',
+                    avatar: post.author_avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=1'
+                  }}
+                  date={new Date(post.created_at).toLocaleDateString()}
+                  tags={post.tags.map(t => t.name)}
+                  likes={post.like_count}
+                  comments={post.comment_count}
+                  views={post.view_count}
+                />
+              </Link>
             ))
           ) : (
             <div className="col-span-full text-center py-10 text-gray-500">

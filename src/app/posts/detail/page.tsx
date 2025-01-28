@@ -1,12 +1,46 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Search, ChevronLeft, MessageCircle, Eye, Heart, Share2 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { BlogCard } from '@/components/blog/BlogCard'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
+import { supabase } from '@/lib/supabase'
+import { useToast } from "@/hooks/use-toast"
+import Link from 'next/link'
+import { Badge } from "@/components/ui/badge"
+
+interface PostDetail {
+  id: number;
+  title: string;
+  content: string;
+  thumbnail_url: string;
+  created_at: string;
+  view_count: number;
+  like_count: number;
+  comment_count: number;
+  author_name: string;
+  author_avatar_url: string;
+  tags: Array<{ id: number; name: string; slug: string; }>;
+  prev_post: { id: number; title: string; thumbnail_url: string; } | null;
+  next_post: { id: number; title: string; thumbnail_url: string; } | null;
+}
+
+interface RelatedPost {
+  id: number;
+  title: string;
+  content: string;
+  thumbnail_url: string;
+  created_at: string;
+  author_name: string;
+  author_avatar_url: string;
+  like_count: number;
+  comment_count: number;
+  view_count: number;
+  tags: Array<{ id: number; name: string; slug: string; }>;
+}
 
 // 인기 태그 데이터
 const popularTags = [
@@ -106,26 +140,134 @@ const currentIndex = blogPosts.findIndex(post => post.id === '3') // 3번 글을
 const prevPost = currentIndex > 0 ? blogPosts[currentIndex - 1] : null
 const nextPost = currentIndex < blogPosts.length - 1 ? blogPosts[currentIndex + 1] : null
 
+function stripMarkdownAndHtml(content: string): string {
+  // 마크다운 이미지, 링크 제거
+  const noMarkdown = content.replace(/!\[.*?\]\(.*?\)/g, '')
+                           .replace(/\[.*?\]\(.*?\)/g, '')
+                           .replace(/#{1,6}\s?/g, '')
+                           .replace(/(\*\*|__)(.*?)\1/g, '$2')
+                           .replace(/(\*|_)(.*?)\1/g, '$2');
+  
+  // HTML 태그 제거
+  const noHtml = noMarkdown.replace(/<[^>]*>/g, '');
+  
+  // 연속된 공백 제거 및 앞뒤 공백 제거
+  const cleanText = noHtml.replace(/\s+/g, ' ').trim();
+  
+  // 첫 100자만 반환하고 말줄임표 추가
+  return cleanText.length > 100 ? cleanText.slice(0, 100) + '...' : cleanText;
+}
+
 export default function PostDetailPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const postId = searchParams.get('id')
+  
   const [isLiked, setIsLiked] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [post, setPost] = useState<PostDetail | null>(null)
+  const [relatedPosts, setRelatedPosts] = useState<RelatedPost[]>([])
+  const { toast } = useToast()
+
+  useEffect(() => {
+    if (postId) {
+      fetchPostDetail(parseInt(postId));
+    }
+  }, [postId]);
+
+  useEffect(() => {
+    if (post) {
+      fetchRelatedPosts(post.id);
+    }
+  }, [post]);
 
   const handleLike = () => {
     setIsLiked(!isLiked)
   }
 
   const handleShare = async () => {
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: blogPosts[currentIndex].title,
-          text: blogPosts[currentIndex].content.slice(0, 100) + '...',
-          url: window.location.href,
-        })
-      } catch (error) {
-        console.log('공유하기 실패:', error)
-      }
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      toast({
+        title: "링크가 복사되었습니다.",
+        variant: "default",
+      });
+    } catch (error) {
+      console.log('공유하기 실패:', error);
+      toast({
+        title: "링크 복사에 실패했습니다.",
+        variant: "destructive",
+      });
     }
+  }
+
+  async function fetchPostDetail(id: number) {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .rpc('get_post_detail', {
+          p_post_id: id
+        });
+
+      if (error) {
+        console.error('Error fetching post detail:', error);
+        return;
+      }
+
+      console.log('Post detail data:', data); // 데이터 확인용 로그
+
+      if (data && data.length > 0) {
+        const postData = data[0];
+        console.log('Post data to set:', postData); // 실제 설정되는 데이터 확인
+        setPost(postData);
+      } else {
+        console.log('No post data found'); // 데이터가 없는 경우 확인
+        router.push('/posts');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function fetchRelatedPosts(id: number) {
+    try {
+      // 현재 포스트의 태그 ID들 추출
+      const tagIds = post?.tags?.map(tag => tag.id) || [];
+      
+      if (tagIds.length === 0) return;
+
+      const { data, error } = await supabase
+        .rpc('get_posts', {
+          p_search: null,
+          p_tag_ids: tagIds,
+          p_order_by: 'view_count',
+          p_limit: 8,
+          p_offset: 0
+        });
+
+      if (error) {
+        console.error('Error fetching related posts:', error);
+        return;
+      }
+
+      if (data) {
+        // 현재 포스트 제외하고 필터링
+        const filteredPosts = data.filter(p => p.id !== id);
+        setRelatedPosts(filteredPosts);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+    }
+  }
+
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center">로딩중...</div>;
+  }
+
+  if (!post) {
+    return <div className="min-h-screen flex items-center justify-center">게시글을 찾을 수 없습니다.</div>;
   }
 
   return (
@@ -148,7 +290,7 @@ export default function PostDetailPage() {
           {/* 제목과 액션 버튼 */}
           <div className="flex justify-between items-start gap-4 mb-4">
             <h2 className="text-3xl font-bold">
-              {blogPosts[currentIndex].title}
+              {post.title}
             </h2>
             <div className="flex items-center gap-3">
               <button
@@ -172,52 +314,57 @@ export default function PostDetailPage() {
 
           <div className="flex items-center justify-between mb-6 pb-4 border-b">
             <div className="flex items-center gap-3">
-              <Image
-                src={blogPosts[currentIndex].author.avatar}
-                alt={blogPosts[currentIndex].author.name}
-                width={40}
-                height={40}
-                className="rounded-full"
-              />
-              <div>
-                <p className="font-semibold">{blogPosts[currentIndex].author.name}</p>
-                <p className="text-sm text-gray-500">{blogPosts[currentIndex].date}</p>
+              <div className="flex items-center gap-3">
+                <Image
+                  src={post.author_avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=1'}
+                  alt={`${post.author_name} 프로필 이미지`}
+                  width={40}
+                  height={40}
+                  className="rounded-full"
+                />
+                <div>
+                  <p className="font-semibold text-gray-900">{post.author_name}</p>
+                  <p className="text-sm text-gray-500">
+                    {new Date(post.created_at).toLocaleDateString()}
+                  </p>
+                </div>
               </div>
             </div>
             
             <div className="flex items-center gap-4">
               <div className="flex items-center">
                 <MessageCircle className="w-5 h-5 text-gray-400" />
-                <span className="ml-1 text-gray-600">{blogPosts[currentIndex].comments}</span>
+                <span className="ml-1 text-gray-600">{post.comment_count}</span>
               </div>
               <div className="flex items-center">
                 <Eye className="w-5 h-5 text-gray-400" />
-                <span className="ml-1 text-gray-600">{blogPosts[currentIndex].views}</span>
+                <span className="ml-1 text-gray-600">{post.view_count}</span>
               </div>
               <div className="flex items-center">
                 <Heart className="w-5 h-5 text-gray-400" />
-                <span className="ml-1 text-gray-600">{blogPosts[currentIndex].likes}</span>
+                <span className="ml-1 text-gray-600">{post.like_count}</span>
               </div>
             </div>
           </div>
 
           {/* 태그 목록 */}
           <div className="flex flex-wrap gap-2 mb-8">
-            {blogPosts[currentIndex].tags.map((tag) => (
-              <span 
-                key={tag} 
-                className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm hover:bg-gray-200 cursor-pointer"
+            {post.tags.map((tag) => (
+              <Badge
+                key={tag.id}
+                variant="secondary"
+                className="text-xs cursor-pointer"
               >
-                #{tag}
-              </span>
+                #{tag.name}
+              </Badge>
             ))}
           </div>
 
           {/* 썸네일 이미지 */}
           <div className="relative aspect-video mb-8 rounded-lg overflow-hidden">
             <Image
-              src={blogPosts[currentIndex].thumbnail}
-              alt={blogPosts[currentIndex].title}
+              src={post.thumbnail_url}
+              alt={post.title}
               fill
               className="object-cover"
             />
@@ -226,47 +373,50 @@ export default function PostDetailPage() {
           {/* 본문 내용 */}
           <div className="prose max-w-none mb-12">
             <div className="text-gray-800 leading-relaxed whitespace-pre-line">
-              {blogPosts[currentIndex].content}
+              {post.content}
             </div>
           </div>
 
           {/* 이전글/다음글 네비게이션 */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-8">
             {/* 이전 글 */}
-            {prevPost && (
-              <div className="group cursor-pointer" onClick={() => router.push(`/posts/detail/${prevPost.id}`)}>
+            {post.prev_post && (
+              <div 
+                className="group cursor-pointer" 
+                onClick={() => router.push(`/posts/detail?id=${post.prev_post.id}`)}
+              >
                 <div className="text-sm text-gray-500 mb-2">이전 글</div>
                 <div className="flex items-center gap-4">
                   <div className="relative w-20 h-20 rounded-md overflow-hidden flex-shrink-0">
                     <Image
-                      src={prevPost.thumbnail}
-                      alt={prevPost.title}
+                      src={post.prev_post.thumbnail_url}
+                      alt={post.prev_post.title}
                       fill
                       className="object-cover group-hover:scale-105 transition-transform"
                     />
                   </div>
                   <h3 className="text-lg font-semibold group-hover:text-blue-600 transition-colors line-clamp-2">
-                    {prevPost.title}
+                    {post.prev_post.title}
                   </h3>
                 </div>
               </div>
             )}
 
             {/* 다음 글 */}
-            {nextPost && (
+            {post.next_post && (
               <div 
                 className="group cursor-pointer text-right md:border-l md:pl-4" 
-                onClick={() => router.push(`/posts/detail/${nextPost.id}`)}
+                onClick={() => router.push(`/posts/detail?id=${post.next_post.id}`)}
               >
                 <div className="text-sm text-gray-500 mb-2">다음 글</div>
                 <div className="flex items-center gap-4 justify-end">
                   <h3 className="text-lg font-semibold group-hover:text-blue-600 transition-colors line-clamp-2">
-                    {nextPost.title}
+                    {post.next_post.title}
                   </h3>
                   <div className="relative w-20 h-20 rounded-md overflow-hidden flex-shrink-0">
                     <Image
-                      src={nextPost.thumbnail}
-                      alt={nextPost.title}
+                      src={post.next_post.thumbnail_url}
+                      alt={post.next_post.title}
                       fill
                       className="object-cover group-hover:scale-105 transition-transform"
                     />
@@ -278,14 +428,36 @@ export default function PostDetailPage() {
         </div>
 
         {/* 관련 글 섹션 */}
-        <div className="mt-16 max-w-7xl mx-auto">
-          <h2 className="text-2xl font-bold mb-6">관련 글</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {relatedPosts.map((post) => (
-              <BlogCard key={post.id} {...post} />
-            ))}
+        {relatedPosts.length > 0 && (
+          <div className="mt-16 max-w-7xl mx-auto">
+            <h2 className="text-2xl font-bold mb-6">관련 글</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {relatedPosts.map((relatedPost) => (
+                <Link 
+                  key={relatedPost.id}
+                  href={`/posts/detail?id=${relatedPost.id}`}
+                  className="block hover:opacity-95 transition-opacity"
+                >
+                  <BlogCard 
+                    id={relatedPost.id.toString()}
+                    title={relatedPost.title}
+                    content={stripMarkdownAndHtml(relatedPost.content)}
+                    thumbnail={relatedPost.thumbnail_url}
+                    author={{
+                      name: relatedPost.author_name || 'Unknown',
+                      avatar: relatedPost.author_avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=1'
+                    }}
+                    date={new Date(relatedPost.created_at).toLocaleDateString()}
+                    tags={relatedPost.tags?.map(t => t.name) || []}
+                    likes={relatedPost.like_count || 0}
+                    comments={relatedPost.comment_count || 0}
+                    views={relatedPost.view_count || 0}
+                  />
+                </Link>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </main>
   )
