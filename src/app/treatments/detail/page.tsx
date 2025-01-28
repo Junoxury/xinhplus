@@ -1,5 +1,6 @@
 'use client'
 
+import React from 'react'
 import { CategoryIcon } from '@/components/category/CategoryIcon'
 import { TreatmentBanner } from '@/components/treatments/TreatmentBanner'
 import { TreatmentFilter } from '@/components/treatments/TreatmentFilter'
@@ -15,6 +16,8 @@ import { Button } from '@/components/ui/button'
 import { ChevronDown, ChevronRight, ChevronLeft } from 'lucide-react'
 import { ReviewCard } from '@/components/reviews/ReviewCard'
 import { TreatmentCard } from '@/components/treatments/TreatmentCard'
+import { useSearchParams } from 'next/navigation'
+import { supabase } from '@/lib/supabase'
 
 // 더미 시술 데이터 수정
 const treatments = [
@@ -298,12 +301,76 @@ function HorizontalScroll({ children }: { children: React.ReactNode }) {
   )
 }
 
+interface TreatmentDetail {
+  id: number
+  hospital_id: number
+  hospital_name: string
+  title: string
+  summary: string
+  detail_content: string
+  city_id: number
+  city_name: string
+  thumbnail_url: string
+  price: number
+  discount_price: number
+  discount_rate: number
+  rating: number
+  view_count: number
+  like_count: number
+  comment_count: number
+  is_advertised: boolean
+  is_recommended: boolean
+  is_discounted: boolean
+  categories: {
+    depth2_id: number
+    depth2_name: string
+    depth3_list: {
+      id: number
+      name: string
+    }[]
+  }[]
+  website?: string
+  facebook_url?: string
+  zalo_id?: string
+  phone?: string
+}
+
 // 시술 정보 페이지
 export default function TreatmentDetailPage() {
+  const searchParams = useSearchParams()
+  const id = searchParams.get('id')
+  const [treatment, setTreatment] = useState<TreatmentDetail | null>(null)
   const [showFullImage, setShowFullImage] = useState(false)
   const [activeTab, setActiveTab] = useState('detail-section')
   const tabRef = useRef<HTMLDivElement>(null)
   const tabContainerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const fetchTreatmentDetail = async () => {
+      if (!id) return
+
+      try {
+        const { data, error } = await supabase
+          .rpc('get_treatment_detail', { 
+            p_treatment_id: Number(id) 
+          })
+
+        if (error) {
+          console.error('Error fetching treatment detail:', error)
+          return
+        }
+
+        if (data && data.length > 0) {
+          setTreatment(data[0])
+        }
+
+      } catch (error) {
+        console.error('Error in fetchTreatmentDetail:', error)
+      }
+    }
+
+    fetchTreatmentDetail()
+  }, [id])
 
   useEffect(() => {
     const handleScroll = () => {
@@ -472,6 +539,8 @@ export default function TreatmentDetailPage() {
     }
   ]
 
+  if (!treatment) return null
+
   return (
     <main className="min-h-screen bg-gray-50 pb-[72px] md:pb-[88px]">
       <TreatmentBanner />
@@ -482,8 +551,8 @@ export default function TreatmentDetailPage() {
             <div className="md:w-1/3 relative">
               <div className="aspect-[2/1]">
                 <Image
-                  src="https://images.babitalk.com/images/89de9f71c6e88351e0f8f02db5cad770/banner_img_1724718171.jpg"
-                  alt="Treatment"
+                  src={treatment.thumbnail_url}
+                  alt={treatment.title}
                   fill
                   className="object-cover"
                 />
@@ -500,67 +569,99 @@ export default function TreatmentDetailPage() {
                 <button className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-full transition-colors">
                   <Heart className="w-5 h-5 text-gray-600" />
                 </button>
-                <Link href="#" className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-full transition-colors">
-                  <Home className="w-5 h-5 text-gray-600" />
-                </Link>
-                <Link href="#" className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-full transition-colors">
-                  <Facebook className="w-5 h-5 text-gray-600" />
-                </Link>
-                <Link href="#" className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-full transition-colors">
-                  <Image
-                    src="/images/zalo.svg"
-                    width={20}
-                    height={20}
-                    alt="Zalo"
-                    className="w-5 h-5"
-                  />
-                </Link>
+                {treatment.website && (
+                  <a 
+                    href={treatment.website}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-full transition-colors"
+                  >
+                    <Home className="w-5 h-5 text-gray-600" />
+                  </a>
+                )}
+                {treatment.facebook_url && (
+                  <a 
+                    href={treatment.facebook_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-full transition-colors"
+                  >
+                    <Facebook className="w-5 h-5 text-gray-600" />
+                  </a>
+                )}
+                {treatment.zalo_id && (
+                  <a 
+                    href={`https://zalo.me/${treatment.zalo_id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-full transition-colors"
+                  >
+                    <Image
+                      src="/images/zalo.svg"
+                      width={20}
+                      height={20}
+                      alt="Zalo"
+                      className="w-5 h-5"
+                    />
+                  </a>
+                )}
               </div>
 
               {/* 제목 */}
-              <h1 className="text-2xl font-bold mb-4">리프팅, 초강력 미친 리프팅!!!!!</h1>
+              <h1 className="text-2xl font-bold mb-4">{treatment.title}</h1>
 
               {/* 위치, 평점 */}
               <div className="flex items-center gap-2 text-gray-600 mb-4">
-                <span>Hanoi - Thẩm mỹ viện Nana</span>
+                <span>{treatment.city_name} - {treatment.hospital_name}</span>
                 <span>•</span>
                 <span className="flex items-center">
-                  ⭐️ 5.0
-                  <span className="text-gray-400 ml-1">(12,546)</span>
+                  ⭐️ {treatment.rating.toFixed(1)}
+                  <span className="text-gray-400 ml-1">({treatment.comment_count})</span>
                 </span>
               </div>
 
               {/* 요약 설명 */}
               <div className="mb-6 text-gray-600">
-                <p className="leading-relaxed">
-                  초강력 리프팅으로 확실한 V라인을 만들어드립니다. 
-                  특허받은 듀얼 리프팅 실을 사용하여 피부 처짐을 개선하고, 
-                  자연스러운 얼굴 윤곽을 만들어드립니다. 
-                  시술 시간은 30분 내외로 빠른 일상 복귀가 가능합니다.
-                </p>
-                
+                <p className="leading-relaxed">{treatment.summary}</p>
               </div>
 
               {/* 카테고리 태그 */}
-              <div className="flex flex-wrap gap-2 mb-8">
-                <span className="px-3 py-1.5 bg-pink-500 text-white rounded-full text-sm">
-                  Nâng cơ
-                </span>
-                <span className="px-3 py-1.5 bg-pink-100 text-pink-500 rounded-full text-sm">
-                  Nâng cơ V-line
-                </span>
-                <span className="px-3 py-1.5 bg-pink-100 text-pink-500 rounded-full text-sm">
-                  Nâng cơ bằng chỉ siêu mảnh
-                </span>
+              <div className="space-y-3">
+                {treatment.categories?.map((category) => (
+                  <div key={category.depth2_id} className="flex flex-wrap items-center gap-2">
+                    {/* Depth2 카테고리 */}
+                    <span className="px-3 py-1.5 rounded-full bg-pink-500 text-white text-sm">
+                      {category.depth2_name}
+                    </span>
+
+                    {/* Depth3 카테고리들 */}
+                    <div className="flex flex-wrap gap-2">
+                      {category.depth3_list?.map((depth3) => (
+                        <span 
+                          key={depth3.id}
+                          className="px-3 py-1.5 rounded-full bg-pink-100 text-pink-500 text-sm"
+                        >
+                          {depth3.name}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </div>
 
               {/* 가격 정보 */}
               <div className="flex items-baseline justify-end gap-4">
                 <div className="flex items-center gap-2">
-                  <span className="text-red-500 font-bold text-xl">50%</span>
-                  <span className="text-gray-400 line-through">24,000,000 VND</span>
+                  <span className="text-red-500 font-bold text-xl">
+                    {treatment.discount_rate}%
+                  </span>
+                  <span className="text-gray-400 line-through">
+                    {treatment.price.toLocaleString()} VND
+                  </span>
                 </div>
-                <span className="text-black text-3xl font-bold">12,000,000 VND</span>
+                <span className="text-black text-3xl font-bold">
+                  {treatment.discount_price.toLocaleString()} VND
+                </span>
               </div>
             </div>
           </div>
@@ -597,15 +698,12 @@ export default function TreatmentDetailPage() {
         {/* 상세 설명 섹션 */}
         <div id="detail-section" className="bg-white rounded-2xl shadow-sm overflow-hidden scroll-mt-[112px]">
           <div className="flex flex-col md:flex-row">
-            {/* 좌측 상세 설명 이미지 */}
+            {/* 좌측 상세 설명 HTML */}
             <div className="md:w-2/3 relative">
               <div className={`relative ${!showFullImage ? 'h-[800px]' : ''} overflow-hidden`}>
-                <Image
-                  src="https://images.babitalk.com/images/6f54b8508f8bccc7f37cd069abbe7c36/event_img_1700809372.jpg"
-                  alt="Treatment detail"
-                  width={800}
-                  height={2400}
-                  className="w-full object-top object-cover"
+                <div 
+                  className="w-full"
+                  dangerouslySetInnerHTML={{ __html: treatment.detail_content }}
                 />
                 {!showFullImage && (
                   <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-white to-transparent" />

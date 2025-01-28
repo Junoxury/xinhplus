@@ -91,7 +91,7 @@ export function TreatmentCard({
             <div className="md:flex hidden items-center mb-3">
               <Star className="w-4 h-4 text-yellow-400 mr-1" />
               <span className="font-bold mr-1">{rating.toFixed(1)}</span>
-              <span className="text-gray-600">({comment_count.toLocaleString()})</span>
+              <span className="text-gray-600">({comment_count})</span>
             </div>
 
             {/* 모바일 버전 Price + Rating 한 줄로 */}
@@ -104,7 +104,7 @@ export function TreatmentCard({
               <div className="flex items-center">
                 <Star className="w-4 h-4 text-yellow-400 mr-1" />
                 <span className="font-bold mr-1">{rating.toFixed(1)}</span>
-                <span className="text-gray-600">({comment_count.toLocaleString()})</span>
+                <span className="text-gray-600">({comment_count})</span>
               </div>
             </div>
 
