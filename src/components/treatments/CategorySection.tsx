@@ -1,5 +1,5 @@
 import { CategoryIcon } from '@/components/category/CategoryIcon'
-import { useRef, MouseEvent, useState } from 'react'
+import { useRef, MouseEvent, useState, useEffect } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { X } from 'lucide-react'
 
@@ -63,6 +63,22 @@ export function CategorySection({
       ? treatmentMethodSubs.find(sub => sub.id === initialSelection.treatmentSubId) ?? null
       : null
   )
+
+  // initialSelection이 변경될 때마다 선택 상태 업데이트
+  useEffect(() => {
+    setSelectedBodyPart(initialSelection?.bodyPartId ?? null)
+    setSelectedTreatment(initialSelection?.treatmentId ?? null)
+    setSelectedBodyPartSub(
+      initialSelection?.bodyPartSubId 
+        ? bodyPartSubs.find(sub => sub.id === initialSelection.bodyPartSubId) ?? null 
+        : null
+    )
+    setSelectedTreatmentSub(
+      initialSelection?.treatmentSubId
+        ? treatmentMethodSubs.find(sub => sub.id === initialSelection.treatmentSubId) ?? null
+        : null
+    )
+  }, [initialSelection, bodyPartSubs, treatmentMethodSubs])
 
   const onMouseDown = (e: MouseEvent) => {
     isDown.current = true

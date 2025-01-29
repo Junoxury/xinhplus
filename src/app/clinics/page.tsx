@@ -246,24 +246,50 @@ export default function ClinicPage() {
         }
 
         // 데이터 변환
-        const formattedClinics = data.map(hospital => ({
-          id: hospital.id,
-          title: hospital.hospital_name,
-          description: hospital.description || '',
-          image: hospital.thumbnail_url,
-          rating: hospital.average_rating || 0,
-          reviewCount: hospital.review_count || 0,
-          location: hospital.city_name,
-          categories: Object.entries(hospital.categories || {}).map(
-            ([categoryType, category]: [string, any]) => ({
-              id: category.depth2?.id || 0,
-              name: category.depth2?.name || '',
-              key: `${hospital.id}-${categoryType}-${category.depth2?.id}`
-            })
-          ).filter(cat => cat.id !== 0),
-          isNew: hospital.is_new || false,
-          isAd: hospital.is_advertised || false
-        }))
+        const formattedClinics = data.map((item: any) => {
+          // categories 데이터 구조 확인
+          console.log('원본 병원 데이터:', {
+            id: item.id,
+            name: item.hospital_name,
+            categories: item.categories,
+          });
+
+          // categories 데이터 처리 - depth2의 name과 id 추출
+          let processedCategories = [];
+          try {
+            if (item.categories) {
+              // 객체인 경우 배열로 변환
+              const categoriesArray = Array.isArray(item.categories) 
+                ? item.categories 
+                : Object.values(item.categories);
+
+              processedCategories = categoriesArray.map(cat => ({
+                id: cat.depth2?.id,
+                name: cat.depth2?.name
+              })).filter(cat => cat.id && cat.name);  // 유효한 데이터만 필터
+            }
+          } catch (error) {
+            console.error('카테고리 처리 중 오류:', error);
+          }
+
+          console.log('처리된 카테고리:', processedCategories);
+
+          return {
+            id: item.id,
+            title: item.hospital_name || item.name,  // hospital_name이 우선, 없으면 name 사용
+            description: item.description || '',
+            image: item.thumbnail_url || '/images/placeholder.png',
+            location: item.city_name || '',
+            rating: Number(item.average_rating || item.rating || 0),  // average_rating이 우선, 없으면 rating 사용
+            viewCount: item.view_count || 0,
+            categories: processedCategories,
+            isRecommended: Boolean(item.is_recommended),
+            isAd: Boolean(item.is_advertised),
+            isMember: Boolean(item.is_member)
+          }
+        })
+
+        console.log('변환된 병원 데이터:', formattedClinics);  // 변환 결과 확인용 로그
 
         if (page === 1) {
           setClinics(formattedClinics)

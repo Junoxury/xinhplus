@@ -2,6 +2,7 @@ import Image from 'next/image'
 import { Heart, MapPin, Star } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { formatPrice } from '@/utils/format'
+import Link from 'next/link'
 
 interface TreatmentCardProps {
   id: number
@@ -25,9 +26,11 @@ interface TreatmentCardProps {
   }[]
   is_advertised: boolean
   is_recommended: boolean
+  disableLink?: boolean
 }
 
 export function TreatmentCard({
+  id,
   title,
   summary,
   hospital_name,
@@ -40,9 +43,10 @@ export function TreatmentCard({
   comment_count,
   categories,
   is_advertised,
-  is_recommended
+  is_recommended,
+  disableLink
 }: TreatmentCardProps) {
-  return (
+  const CardContent = () => (
     <div className="w-full overflow-x-hidden">
       <div className="rounded-2xl overflow-hidden bg-white">
         <div className="md:block flex">
@@ -69,10 +73,10 @@ export function TreatmentCard({
                 </div>
               )}
             </div>
-            {/* Bookmark button */}
-            <button className="absolute top-2 right-2 md:p-2 p-1 md:bg-white/80 bg-transparent backdrop-blur-sm rounded-full hover:bg-white/10 transition-colors">
+            {/* Bookmark button - div로 변경 */}
+            <div className="absolute top-2 right-2 md:p-2 p-1 md:bg-white/80 bg-transparent backdrop-blur-sm rounded-full">
               <Heart className="md:w-5 md:h-5 w-4 h-4" />
-            </button>
+            </div>
           </div>
 
           {/* 컨텐츠 섹션 */}
@@ -134,5 +138,20 @@ export function TreatmentCard({
         </div>
       </div>
     </div>
+  )
+
+  // 카드 전체를 감싸는 컨테이너
+  const Container = disableLink 
+    ? ({ children }: { children: React.ReactNode }) => <div>{children}</div>
+    : ({ children }: { children: React.ReactNode }) => (
+        <Link href={`/treatments/detail?id=${id}`} className="block">
+          {children}
+        </Link>
+      );
+
+  return (
+    <Container>
+      <CardContent />
+    </Container>
   )
 } 

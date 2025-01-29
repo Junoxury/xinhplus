@@ -9,88 +9,74 @@ import { useRef, MouseEvent, useEffect, useState } from 'react'
 import { ChevronLeft, ChevronRight, Settings } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ShortCard } from '@/components/shorts/ShortCard'
-import bodyPartsData from '@/data/bodyParts.json'
-import treatmentMethodsData from '@/data/treatmentMethods.json'
+import { supabase } from '@/lib/supabase'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 
-const bodyParts = bodyPartsData.categories
-const treatmentMethods = treatmentMethodsData.categories
+// 기존 popularTreatments 배열 대신 상태로 관리
+interface PopularTreatment {
+  id: string;
+  image: string;
+  title: string;
+  description: string;
+  clinic: string;
+  location: string;
+  originalPrice: number;
+  discountRate: number;
+  rating: number;
+  reviewCount: number;
+  categories: string[];
+  likes: number;
+  isAd: boolean;
+  isNew: boolean;
+}
 
-const popularTreatments = [
-  {
-    id: '1',
-    image: 'https://web.babitalk.com/_next/image?url=https%3A%2F%2Fimages.babitalk.com%2Fimages%2Fd63eb6911fceb3ec8341be1df5c73b92%2Fbanner_img_1735796998.jpg&w=384&q=75',
-    title: '듀얼픽스 광대축소',
-    description: '안체적인 윤곽, 광대축소, 사각턱, 턱끝',
-    clinic: 'DR.AD BEAUTY CLINIC',
-    location: 'Hanoi - Thẩm mỹ viện Nana',
-    originalPrice: 6000000,
-    discountRate: 45,
-    rating: 5.0,
-    reviewCount: 12546,
-    categories: ['nose', 'Bottom eyelid', 'Eyelid surgery'],
-    likes: 128,
-    isAd: true,
-    isNew: true
-  },
-  {
-    id: '2',
-    image: 'https://web.babitalk.com/_next/image?url=https%3A%2F%2Fimages.babitalk.com%2Fimages%2F27e2ccb0cf265a3cb18ce6eff35f4174%2Fbanner_img_1723540041.jpg&w=384&q=75',
-    title: '눈매교정',
-    description: '자연스러운 눈매 교정과 눈밑 지방 재배치로 생기있는 눈매를 만듭니다',
-    clinic: '뷰티라인 성형외과',
-    location: 'Hanoi - Thẩm mỹ viện Beauty',
-    originalPrice: 3500000,
-    discountRate: 30,
-    rating: 4.8,
-    reviewCount: 8234,
-    categories: ['Eyelid surgery', 'Bottom eyelid'],
-    likes: 95,
-    isNew: true
-  },
-  {
-    id: '3',
-    image: 'https://web.babitalk.com/_next/image?url=https%3A%2F%2Fimages.babitalk.com%2Fimages%2Fc50a6cece7c2170e489c6582a13888c4%2Fbanner_img_1731635515.jpg&w=384&q=75',
-    title: '이마 지방이식',
-    description: '자연스러운 이마 라인과 탄력있는 피부를 동시에',
-    clinic: '미소성형외과',
-    location: 'Ho Chi Minh - Thẩm mỹ viện Smile',
-    originalPrice: 4500000,
-    discountRate: 35,
-    rating: 4.9,
-    reviewCount: 5632,
-    categories: ['Forehead', 'Fat transfer'],
-    likes: 76,
-    isAd: true
-  },
-  {
-    id: '4',
-    image: 'https://web.babitalk.com/_next/image?url=https%3A%2F%2Fimages.babitalk.com%2Fimages%2F89de9f71c6e88351e0f8f02db5cad770%2Fbanner_img_1724718171.jpg&w=384&q=75',
-    title: '코끝 성형',
-    description: '자연스러운 코 라인을 위한 맞춤 성형',
-    clinic: '라인성형외과',
-    location: 'Hanoi - Thẩm mỹ viện Line',
-    originalPrice: 2800000,
-    discountRate: 40,
-    rating: 4.7,
-    reviewCount: 3421,
-    categories: ['Nose', 'Filler'],
-    likes: 112
-  },
-  {
-    id: '5',
-    image: 'https://web.babitalk.com/_next/image?url=https%3A%2F%2Fimages.babitalk.com%2Fimages%2Fde8c515ffae8cc73a0b0593dde02a79d%2Fbanner_img_1693882962.jpg&w=384&q=75',
-    title: '피부 재생',
-    description: '울쎄라 리프팅과 피부재생 관리를 동시에',
-    clinic: '뷰티클리닉',
-    location: 'Da Nang - Thẩm mỹ viện Beauty',
-    originalPrice: 3000000,
-    discountRate: 25,
-    rating: 4.6,
-    reviewCount: 2876,
-    categories: ['Lifting', 'Skin care'],
-    likes: 85
-  }
-]
+// 도시 타입 정의 추가
+interface City {
+  id: number;
+  name_vi: string;
+}
+
+// 병원 타입 정의 추가
+interface Hospital {
+  id: number;
+  name: string;
+  description: string;
+  thumbnail_url: string;
+  city_name: string;
+  rating: number;
+  comment_count: number;
+  categories: {
+    depth2_id: number;
+    depth2_name: string;
+    depth3_list: {
+      id: number;
+      name: string;
+    }[];
+  }[];
+  is_recommended: boolean;
+  is_advertised: boolean;
+  is_member: boolean;
+}
+
+// 리뷰 타입 정의
+interface Review {
+  id: number;
+  before_image_url: string;
+  after_image_url: string;
+  rating: number;
+  content: string;
+  author_name: string;
+  created_at: string;
+  treatment_name: string;
+  categories: string[];
+  additional_images_count: number;
+  is_locked: boolean;
+  city_name: string;
+  hospital_name: string;
+  comment_count: number;
+  view_count: number;
+}
 
 const featuredClinics = [
   {
@@ -205,124 +191,6 @@ const recentReviews = [
     viewCount: 2431
   }
 ]
-
-// 지역별 인기 시술 데이터 추가
-const localPopularTreatments = {
-  hanoi: [
-    {
-      id: 'h1',
-      image: 'https://web.babitalk.com/_next/image?url=https%3A%2F%2Fimages.babitalk.com%2Fimages%2F27e2ccb0cf265a3cb18ce6eff35f4174%2Fbanner_img_1723540041.jpg&w=384&q=75',
-      title: '하노이 인기 눈매교정',
-      description: '하노이 현지 의료진의 섬세한 눈매교정',
-      clinic: '하노이뷰티클리닉',
-      location: 'Hanoi - Thẩm mỹ viện Nana',
-      originalPrice: 5500000,
-      discountRate: 40,
-      rating: 4.9,
-      reviewCount: 3456,
-      categories: ['Eye', 'Bottom eyelid'],
-      likes: 234,
-      isAd: true,
-      isNew: true
-    },
-    {
-      id: 'h2',
-      image: 'https://web.babitalk.com/_next/image?url=https%3A%2F%2Fimages.babitalk.com%2Fimages%2Fd63eb6911fceb3ec8341be1df5c73b92%2Fbanner_img_1735796998.jpg&w=384&q=75',
-      title: '하노이 광대축소',
-      description: '하노이 최다 시술 광대축소 프로그램',
-      clinic: '하노이라인클리닉',
-      location: 'Hanoi - Thẩm mỹ viện Line',
-      originalPrice: 8500000,
-      discountRate: 35,
-      rating: 4.8,
-      reviewCount: 2891,
-      categories: ['Face', 'Jaw'],
-      likes: 178,
-      isAd: true
-    },
-    {
-      id: 'h3',
-      image: 'https://web.babitalk.com/_next/image?url=https%3A%2F%2Fimages.babitalk.com%2Fimages%2F89de9f71c6e88351e0f8f02db5cad770%2Fbanner_img_1724718171.jpg&w=384&q=75',
-      title: '하노이 코필러',
-      description: '하노이 인증 의료진의 코필러 시술',
-      clinic: '하노이미소클리닉',
-      location: 'Hanoi - Thẩm mỹ viện Smile',
-      originalPrice: 3200000,
-      discountRate: 45,
-      rating: 4.7,
-      reviewCount: 1567,
-      categories: ['Nose', 'Filler'],
-      likes: 145,
-      isNew: true
-    },
-    {
-      id: 'h4',
-      image: 'https://web.babitalk.com/_next/image?url=https%3A%2F%2Fimages.babitalk.com%2Fimages%2Fc50a6cece7c2170e489c6582a13888c4%2Fbanner_img_1731635515.jpg&w=384&q=75',
-      title: '하노이 안면윤곽',
-      description: '하노이 맞춤형 안면윤곽 패키지',
-      clinic: '하노이뷰티라인',
-      location: 'Hanoi - Thẩm mỹ viện Beauty Line',
-      originalPrice: 12000000,
-      discountRate: 30,
-      rating: 4.9,
-      reviewCount: 892,
-      categories: ['Face', 'Jaw', 'Chin'],
-      likes: 167,
-      isAd: true
-    },
-    {
-      id: 'h5',
-      image: 'https://web.babitalk.com/_next/image?url=https%3A%2F%2Fimages.babitalk.com%2Fimages%2Fde8c515ffae8cc73a0b0593dde02a79d%2Fbanner_img_1693882962.jpg&w=384&q=75',
-      title: '하노이 리프팅',
-      description: '하노이 울쎄라 리프팅 프리미엄',
-      clinic: '하노이엘리트클리닉',
-      location: 'Hanoi - Thẩm mỹ viện Elite',
-      originalPrice: 6800000,
-      discountRate: 25,
-      rating: 4.8,
-      reviewCount: 734,
-      categories: ['Lifting', 'Skin'],
-      likes: 123,
-      isNew: true
-    }
-  ],
-  hochiminh: [
-    {
-      id: 'hcm1',
-      image: 'https://web.babitalk.com/_next/image?url=https%3A%2F%2Fimages.babitalk.com%2Fimages%2Fc50a6cece7c2170e489c6582a13888c4%2Fbanner_img_1731635515.jpg&w=384&q=75',
-      title: '호치민 특화 안면윤곽',
-      description: '호치민 1위 안면윤곽 전문의',
-      clinic: '호치민성형외과',
-      location: 'Ho Chi Minh - Thẩm mỹ viện Beauty',
-      originalPrice: 7500000,
-      discountRate: 35,
-      rating: 4.8,
-      reviewCount: 2789,
-      categories: ['Face', 'Jaw'],
-      likes: 189,
-      isAd: true
-    },
-    // ... 더 많은 호치민 시술 데이터
-  ],
-  danang: [
-    {
-      id: 'd1',
-      image: 'https://web.babitalk.com/_next/image?url=https%3A%2F%2Fimages.babitalk.com%2Fimages%2F89de9f71c6e88351e0f8f02db5cad770%2Fbanner_img_1724718171.jpg&w=384&q=75',
-      title: '다낭 인기 코성형',
-      description: '다낭 대표 코성형 패키지',
-      clinic: '다낭뷰티',
-      location: 'Da Nang - Thẩm mỹ viện Line',
-      originalPrice: 4800000,
-      discountRate: 30,
-      rating: 4.7,
-      reviewCount: 1567,
-      categories: ['Nose', 'Face'],
-      likes: 156,
-      isNew: true
-    },
-    // ... 더 많은 다낭 시술 데이터
-  ]
-}
 
 // shorts 데이터 추가
 const popularShorts = [
@@ -461,8 +329,299 @@ function HorizontalScroll({ children }: { children: React.ReactNode }) {
   )
 }
 
+// 카테고리 데이터 타입 정의
+interface CategoryData {
+  categories: any[];
+  subCategories: any[];
+}
+
 export default function HomePage() {
-  const [selectedLocation, setSelectedLocation] = useState<'hanoi' | 'hochiminh' | 'danang'>('hanoi')
+  const [bodyPartsData, setBodyPartsData] = useState<CategoryData>({ categories: [], subCategories: [] })
+  const [treatmentMethodsData, setTreatmentMethodsData] = useState<CategoryData>({ categories: [], subCategories: [] })
+  const router = useRouter()
+  const [popularTreatments, setPopularTreatments] = useState<PopularTreatment[]>([])
+  const [cities, setCities] = useState<City[]>([])
+  const [selectedLocation, setSelectedLocation] = useState<number | null>(null)  // 이것만 유지
+  const [localPopularTreatments, setLocalPopularTreatments] = useState<Record<number, any[]>>({})
+  const [recommendedClinics, setRecommendedClinics] = useState<Hospital[]>([])
+  const [latestReviews, setLatestReviews] = useState<Review[]>([])
+
+  // 카테고리 데이터 로드
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        // 신체 부위 카테고리 (parent_id = 1)
+        const { data: bodyParts, error: bodyError } = await supabase
+          .rpc('get_categories', { p_parent_depth1_id: 1 })
+
+        if (bodyError) throw bodyError
+        
+        console.log('신체 부위 카테고리 데이터:', {
+          원본데이터: bodyParts,
+          카테고리: bodyParts?.categories,
+          서브카테고리: bodyParts?.subCategories
+        })
+        
+        setBodyPartsData(bodyParts || { categories: [], subCategories: [] })
+
+        // 시술 방법 카테고리 (parent_id = 2)
+        const { data: treatmentMethods, error: treatmentError } = await supabase
+          .rpc('get_categories', { p_parent_depth1_id: 2 })
+
+        if (treatmentError) throw treatmentError
+        
+        console.log('시술 방법 카테고리 데이터:', {
+          원본데이터: treatmentMethods,
+          카테고리: treatmentMethods?.categories,
+          서브카테고리: treatmentMethods?.subCategories
+        })
+        
+        setTreatmentMethodsData(treatmentMethods || { categories: [], subCategories: [] })
+
+      } catch (error) {
+        console.error('카테고리 데이터 로드 실패:', error)
+      }
+    }
+
+    fetchCategories()
+  }, [])
+
+  // 인기 시술 데이터 로드
+  useEffect(() => {
+    const fetchPopularTreatments = async () => {
+      try {
+        const { data, error } = await supabase.rpc('get_treatments', {
+          p_is_advertised: true,
+          p_sort_by: 'view_count',
+          p_limit: 8,
+          p_offset: 0
+        })
+
+        if (error) throw error
+
+        // RPC 응답을 TreatmentCard props 형식으로 변환
+        const formattedTreatments = data.map((item: any) => ({
+          id: item.id,
+          title: item.title,
+          summary: item.summary,
+          hospital_name: item.hospital_name,
+          city_name: item.city_name,
+          thumbnail_url: item.thumbnail_url,
+          price: item.price,
+          discount_price: item.discount_price,
+          discount_rate: item.discount_rate,
+          rating: Number(item.rating),
+          comment_count: item.comment_count,
+          categories: item.categories || [],
+          is_advertised: item.is_advertised,
+          is_recommended: item.is_recommended
+        }))
+
+        setPopularTreatments(formattedTreatments)
+
+      } catch (error) {
+        console.error('인기 시술 데이터 로드 실패:', error)
+      }
+    }
+
+    fetchPopularTreatments()
+  }, [])
+
+  // 도시 데이터 로드
+  useEffect(() => {
+    const fetchCities = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('cities')
+          .select('id, name_vi')
+          .eq('is_active', true)
+          .order('sort_order')
+
+        if (error) throw error
+        
+        setCities(data || [])
+      } catch (error) {
+        console.error('도시 데이터 로드 실패:', error)
+      }
+    }
+
+    fetchCities()
+  }, [])
+
+  // 지역별 인기 시술 데이터 로드
+  useEffect(() => {
+    const fetchLocalTreatments = async () => {
+      try {
+        const { data, error } = await supabase.rpc('get_treatments', {
+          p_city_id: selectedLocation,  // null이면 모든 도시의 데이터를 가져옴
+          p_limit: 8,
+          p_offset: 0
+        })
+
+        if (error) throw error
+
+        const formattedTreatments = data.map((item: any) => ({
+          id: item.id,
+          title: item.title,
+          summary: item.summary,
+          hospital_name: item.hospital_name,
+          city_name: item.city_name,
+          thumbnail_url: item.thumbnail_url,
+          price: item.price,
+          discount_price: item.discount_price,
+          discount_rate: item.discount_rate,
+          rating: Number(item.rating),
+          comment_count: item.comment_count,
+          categories: item.categories || [],
+          is_advertised: item.is_advertised,
+          is_recommended: item.is_recommended
+        }))
+
+        if (selectedLocation === null) {
+          // 선택된 도시가 없을 때는 전체 데이터를 저장
+          setLocalPopularTreatments({ 0: formattedTreatments })
+        } else {
+          // 특정 도시가 선택됐을 때
+          setLocalPopularTreatments(prev => ({
+            ...prev,
+            [selectedLocation]: formattedTreatments
+          }))
+        }
+
+      } catch (error) {
+        console.error('지역별 인기 시술 데이터 로드 실패:', error)
+      }
+    }
+
+    fetchLocalTreatments()
+  }, [selectedLocation])
+
+  // 지역별 인기 시술 섹션 렌더링 조건부 처리
+  const selectedTreatments = selectedLocation !== null 
+    ? localPopularTreatments[selectedLocation] 
+    : localPopularTreatments[0] || []  // 선택된 도시가 없을 때는 전체 데이터 사용
+
+  const handleCategoryClick = (item: any) => {
+    router.push(`/treatments?depth2=${item.id}`)
+  }
+
+  // 추천 병원 데이터 로드
+  useEffect(() => {
+    const fetchRecommendedClinics = async () => {
+      try {
+        const { data, error } = await supabase.rpc('get_hospitals_list', {
+          p_city_id: null,
+          p_depth2_body_category_id: null,
+          p_depth2_treatment_category_id: null,
+          p_depth3_body_category_id: null,
+          p_depth3_treatment_category_id: null,
+          p_is_advertised: null,
+          p_is_recommended: true,
+          p_is_member: null,
+          p_sort_by: 'views',
+          p_page_size: 8,
+          p_page: 1
+        })
+
+        if (error) throw error
+
+        // RPC 응답을 ClinicCard props 형식으로 변환
+        const formattedClinics = data.map((item: any) => {
+          // categories 데이터 구조 확인
+          console.log('원본 병원 데이터:', {
+            id: item.id,
+            name: item.hospital_name,
+            categories: item.categories,
+            type: typeof item.categories,
+            isArray: Array.isArray(item.categories)
+          });
+
+          // categories 데이터 처리 - depth2의 name과 id 추출
+          let processedCategories = [];
+          try {
+            if (item.categories) {
+              // 객체인 경우 배열로 변환
+              const categoriesArray = Array.isArray(item.categories) 
+                ? item.categories 
+                : Object.values(item.categories);
+
+              processedCategories = categoriesArray.map(cat => ({
+                id: cat.depth2?.id,
+                name: cat.depth2?.name
+              })).filter(cat => cat.id && cat.name);  // 유효한 데이터만 필터
+            }
+          } catch (error) {
+            console.error('카테고리 처리 중 오류:', error);
+          }
+
+          console.log('처리된 카테고리:', processedCategories);
+
+          return {
+            id: item.id,
+            title: item.hospital_name,
+            description: item.description || '',
+            image: item.thumbnail_url || '/images/placeholder.png',
+            location: item.city_name,
+            rating: Number(item.average_rating || 0),
+            viewCount: item.view_count || 0,
+            categories: processedCategories,
+            isRecommended: Boolean(item.is_recommended),
+            isAd: Boolean(item.is_advertised),
+            isMember: Boolean(item.is_member)
+          }
+        })
+
+        console.log('변환된 병원 데이터:', formattedClinics);
+        setRecommendedClinics(formattedClinics)
+
+      } catch (error) {
+        console.error('추천 병원 데이터 로드 실패:', error)
+      }
+    }
+
+    fetchRecommendedClinics()
+  }, [])
+
+  // 실시간 후기 데이터 로드
+  useEffect(() => {
+    const fetchLatestReviews = async () => {
+      try {
+        const { data, error } = await supabase.rpc('get_reviews', {
+          p_limit: 6,
+          p_offset: 0,
+          p_sort_by: 'view_count'
+        });
+
+        if (error) throw error;
+
+        // RPC 응답을 기존 ReviewCard 형식에 맞게 변환
+        const formattedReviews = data.map((item: any) => ({
+          id: item.id,
+          beforeImage: item.before_image || '/images/placeholder.png',
+          afterImage: item.after_image || '/images/placeholder.png',
+          rating: Number(item.rating || 0),
+          content: item.content || '',
+          author: item.author_name || '익명',
+          date: new Date(item.created_at).toLocaleDateString(),
+          treatmentName: item.title || '',
+          categories: Array.isArray(item.categories) ? item.categories : [],
+          additionalImagesCount: Number(item.additional_images_count || 0),
+
+          location: item.location || '',
+          clinicName: item.hospital_name || '',
+          commentCount: Number(item.comment_count || 0),
+          viewCount: Number(item.view_count || 0)
+        }));
+
+        setLatestReviews(formattedReviews);
+
+      } catch (error) {
+        console.error('실시간 후기 데이터 로드 실패:', error);
+      }
+    };
+
+    fetchLatestReviews();
+  }, []);
 
   return (
     <main className="min-h-screen">
@@ -474,13 +633,19 @@ export default function HomePage() {
           {/* 모바일 뷰 */}
           <div className="md:hidden">
             <HorizontalScroll>
-              <div className="flex gap-1">
-                {[...bodyParts, ...treatmentMethods].map((item) => (
-                  <div key={item.href} className="w-[60px] flex-shrink-0">
-                    <CategoryIcon {...item} />
-                  </div>
-                ))}
-              </div>
+              {[...bodyPartsData.categories, ...treatmentMethodsData.categories].map((item) => (
+                <Link 
+                  key={`${item.id}-${item.label}`}
+                  href={`/treatments?depth2=${item.id}`}
+                  className="w-[60px] flex-shrink-0"
+                >
+                  <CategoryIcon 
+                    icon="/images/placeholdericon.png"
+                    label={item.label}
+                    isSelected={false}
+                  />
+                </Link>
+              ))}
             </HorizontalScroll>
           </div>
 
@@ -490,8 +655,17 @@ export default function HomePage() {
             <div className="flex flex-col w-1/2">
               <h2 className="text-lg font-bold mb-4">부위</h2>
               <div className="grid grid-cols-6 gap-2">
-                {bodyParts.map((category) => (
-                  <CategoryIcon key={category.href} {...category} />
+                {bodyPartsData.categories.map((category) => (
+                  <Link 
+                    key={`body-${category.id}`}
+                    href={`/treatments?depth2=${category.id}`}
+                  >
+                    <CategoryIcon 
+                      icon="/images/placeholdericon.png"
+                      label={category.label}
+                      isSelected={false}
+                    />
+                  </Link>
                 ))}
               </div>
             </div>
@@ -500,8 +674,17 @@ export default function HomePage() {
             <div className="flex flex-col w-1/4">
               <h2 className="text-lg font-bold mb-4">시술</h2>
               <div className="grid grid-cols-4 gap-2">
-                {treatmentMethods.map((method) => (
-                  <CategoryIcon key={method.href} {...method} />
+                {treatmentMethodsData.categories.map((method) => (
+                  <Link 
+                    key={`treatment-${method.id}`}
+                    href={`/treatments?depth2=${method.id}`}
+                  >
+                    <CategoryIcon 
+                      icon="/images/placeholdericon.png"
+                      label={method.label}
+                      isSelected={false}
+                    />
+                  </Link>
                 ))}
               </div>
             </div>
@@ -510,9 +693,11 @@ export default function HomePage() {
             <div className="flex flex-col w-1/4">
               <h2 className="text-lg font-bold mb-4">시술 조회수 TOP 5</h2>
               <ul className="space-y-2">
-                {popularTreatments.map((treatment, index) => (
-                  <li key={index} className="flex items-center">
-                    <span className="flex items-center justify-center w-8 h-8 bg-purple-600 text-white font-bold rounded-full mr-2">{index + 1}</span>
+                {popularTreatments.slice(0, 5).map((treatment) => (
+                  <li key={treatment.id} className="flex items-center">
+                    <span className="flex items-center justify-center w-8 h-8 bg-purple-600 text-white font-bold rounded-full mr-2">
+                      {popularTreatments.indexOf(treatment) + 1}
+                    </span>
                     <span className="text-md font-medium">{treatment.title}</span>
                   </li>
                 ))}
@@ -531,7 +716,7 @@ export default function HomePage() {
                 const [rank, title] = item.split('. ');
                 return (
                   <span 
-                    key={index} 
+                    key={`search-${index}-${item}`}
                     className="text-sm inline-flex items-center gap-1.5"
                   >
                     <span className="font-bold text-purple-600">{rank}.</span>
@@ -549,21 +734,26 @@ export default function HomePage() {
         <div className="container">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold">인기 시술</h2>
-            <Button variant="ghost" className="text-sm text-muted-foreground h-8 gap-1" asChild>
-              <a href="/treatments">
+            <Link 
+              href="/treatments" 
+              className="text-sm text-muted-foreground h-8 gap-1 inline-flex items-center hover:text-foreground"
+            >
                 전체보기
                 <ChevronRight className="h-4 w-4" />
-              </a>
-            </Button>
+            </Link>
           </div>
           {/* PC 버전 - 슬라이드 */}
           <div className="hidden md:block">
             <HorizontalScroll>
               <div className="flex gap-4">
                 {popularTreatments.map((treatment) => (
-                  <div key={treatment.id} className="w-[300px] flex-shrink-0">
-                    <TreatmentCard {...treatment} />
-                  </div>
+                  <Link 
+                    key={treatment.id}
+                    href={`/treatments/detail?id=${treatment.id}`}
+                    className="w-[300px] flex-shrink-0"
+                  >
+                    <TreatmentCard {...treatment} disableLink />
+                  </Link>
                 ))}
               </div>
             </HorizontalScroll>
@@ -571,10 +761,12 @@ export default function HomePage() {
           {/* 모바일 버전 - 세로 리스트 */}
           <div className="md:hidden flex flex-col gap-4">
             {popularTreatments.map((treatment) => (
-              <TreatmentCard
+              <Link 
                 key={treatment.id}
-                {...treatment}
-              />
+                href={`/treatments/detail?id=${treatment.id}`}
+              >
+                <TreatmentCard {...treatment} disableLink />
+              </Link>
             ))}
           </div>
         </div>
@@ -583,31 +775,21 @@ export default function HomePage() {
       {/* 지역별 인기 시술 섹션 */}
       <section className="py-12 md:py-16 bg-gray-50">
         <div className="container">
-          <div className="flex justify-between items-center mb-6">
+          {/* 헤더 영역 - 모바일에서는 세로 배치 */}
+          <div className="flex md:flex-row flex-col md:items-center md:justify-between gap-4 mb-6">
             <h2 className="text-2xl font-bold">나의 지역</h2>
             <div className="flex items-center gap-2">
-              <div className="flex gap-1">
+              <div className="flex flex-wrap gap-1">
+                {cities.map((city) => (
                 <Button 
-                  variant={selectedLocation === 'hanoi' ? 'default' : 'outline'}
-                  onClick={() => setSelectedLocation('hanoi')}
+                    key={city.id}
+                    variant={selectedLocation === city.id ? 'default' : 'outline'}
+                    onClick={() => setSelectedLocation(city.id)}
                   className="min-w-[70px] h-8 text-sm"
                 >
-                  하노이
+                    {city.name_vi}
                 </Button>
-                <Button 
-                  variant={selectedLocation === 'hochiminh' ? 'default' : 'outline'}
-                  onClick={() => setSelectedLocation('hochiminh')}
-                  className="min-w-[70px] h-8 text-sm"
-                >
-                  호치민
-                </Button>
-                <Button 
-                  variant={selectedLocation === 'danang' ? 'default' : 'outline'}
-                  onClick={() => setSelectedLocation('danang')}
-                  className="min-w-[70px] h-8 text-sm"
-                >
-                  다낭
-                </Button>
+                ))}
               </div>
               <Button 
                 variant="ghost" 
@@ -623,10 +805,14 @@ export default function HomePage() {
           <div className="hidden md:block">
             <HorizontalScroll>
               <div className="flex gap-4">
-                {localPopularTreatments[selectedLocation].map((treatment) => (
-                  <div key={treatment.id} className="w-[300px] flex-shrink-0">
-                    <TreatmentCard {...treatment} />
-                  </div>
+                {selectedTreatments?.map((treatment) => (
+                  <Link 
+                    key={treatment.id}
+                    href={`/treatments/detail?id=${treatment.id}`}
+                    className="w-[300px] flex-shrink-0"
+                  >
+                    <TreatmentCard {...treatment} disableLink />
+                  </Link>
                 ))}
               </div>
             </HorizontalScroll>
@@ -634,11 +820,13 @@ export default function HomePage() {
 
           {/* 모바일 버전 - 세로 리스트 */}
           <div className="md:hidden flex flex-col gap-4">
-            {localPopularTreatments[selectedLocation].map((treatment) => (
-              <TreatmentCard
+            {selectedTreatments?.map((treatment) => (
+              <Link 
                 key={treatment.id}
-                {...treatment}
-              />
+                href={`/treatments/detail?id=${treatment.id}`}
+              >
+                <TreatmentCard {...treatment} disableLink />
+              </Link>
             ))}
           </div>
         </div>
@@ -649,19 +837,24 @@ export default function HomePage() {
         <div className="container">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold">추천 병원</h2>
-            <Button variant="ghost" className="text-sm text-muted-foreground h-8 gap-1" asChild>
-              <a href="/clinics">
+            <Link 
+              href="/clinics" 
+              className="text-sm text-muted-foreground h-8 gap-1 inline-flex items-center hover:text-foreground"
+            >
                 전체보기
                 <ChevronRight className="h-4 w-4" />
-              </a>
-            </Button>
+            </Link>
           </div>
           <HorizontalScroll>
             <div className="flex gap-4">
-              {featuredClinics.map((clinic) => (
-                <div key={clinic.id} className="w-[calc(50vw-2rem)] md:w-[300px] flex-shrink-0">
-                  <ClinicCard {...clinic} />
-                </div>
+              {recommendedClinics.map((clinic) => (
+                <Link 
+                  key={clinic.id}
+                  href={`/clinics/detail?id=${clinic.id}`}
+                  className="w-[calc(50vw-2rem)] md:w-[300px] flex-shrink-0"
+                >
+                  <ClinicCard {...clinic} disableLink />
+                </Link>
               ))}
             </div>
           </HorizontalScroll>
@@ -708,7 +901,7 @@ export default function HomePage() {
         </div>
       </section>
       
-      {/* 후기 섹션 - 배경색 변경 */}
+      {/* 실시간 후기 섹션 */}
       <section className="py-12 md:py-16" style={{ backgroundColor: '#F8F9FC' }}>
         <div className="container">
           <div className="flex justify-between items-center mb-6">
@@ -723,8 +916,8 @@ export default function HomePage() {
           <div className="-mx-4 px-4">
             <HorizontalScroll>
               <div className="flex gap-4">
-                {recentReviews.map((review, index) => (
-                  <div key={index} className="w-[85vw] md:w-[600px] flex-shrink-0">
+                {latestReviews.map((review) => (
+                  <div key={review.id} className="w-[85vw] md:w-[600px] flex-shrink-0">
                     <ReviewCard {...review} />
                   </div>
                 ))}

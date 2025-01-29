@@ -5,11 +5,11 @@ import { supabase } from '@/lib/supabase'
 import { TreatmentBanner } from '@/components/treatments/TreatmentBanner'
 import { TreatmentFilter } from '@/components/treatments/TreatmentFilter'
 import { TreatmentList } from '@/components/treatments/TreatmentList'
-import bodyPartsData from '@/data/bodyParts.json'
-import treatmentMethodsData from '@/data/treatmentMethods.json'
+
 import { CategorySection } from '@/components/treatments/CategorySection'
 import Link from 'next/link'
 import { TreatmentCard } from '@/components/treatments/TreatmentCard'
+import { useSearchParams } from 'next/navigation'
 
 // 시술 데이터 타입 정의
 interface Treatment {
@@ -80,6 +80,63 @@ export default function TreatmentPage() {
   // 카테고리 데이터를 위한 상태 추가
   const [bodyPartsData, setBodyPartsData] = useState({ categories: [], subCategories: [] })
   const [treatmentMethodsData, setTreatmentMethodsData] = useState({ categories: [], subCategories: [] })
+
+  const searchParams = useSearchParams()
+  
+  // URL에서 depth2 파라미터 가져오기
+  useEffect(() => {
+    const depth2Id = searchParams.get('depth2')
+    if (!depth2Id) return
+    
+    // 카테고리 데이터가 로드되기 전에는 실행하지 않음
+    if (bodyPartsData.categories.length === 0 || treatmentMethodsData.categories.length === 0) return
+    
+    const numericDepth2Id = Number(depth2Id)
+    
+    // depth2Id가 bodyParts에 속하는지 treatmentMethods에 속하는지 확인
+    const isBodyPart = bodyPartsData.categories.some(
+      category => category.id === numericDepth2Id
+    )
+    
+    const isTreatmentMethod = treatmentMethodsData.categories.some(
+      category => category.id === numericDepth2Id
+    )
+    
+    // 필터 업데이트
+    if (isBodyPart || isTreatmentMethod) {
+      setFilters(prev => ({
+        ...prev,
+        depth2_category_id: numericDepth2Id
+      }))
+      
+      // CategorySection의 initialSelection 업데이트
+      setCategorySelection({
+        bodyPartId: isBodyPart ? numericDepth2Id : null,
+        treatmentId: isTreatmentMethod ? numericDepth2Id : null,
+        bodyPartSubId: null,
+        treatmentSubId: null
+      })
+    }
+  }, [searchParams, bodyPartsData.categories, treatmentMethodsData.categories])
+
+  // CategorySection의 initialSelection을 위한 상태 추가
+  const [categorySelection, setCategorySelection] = useState(() => {
+    const depth2Id = searchParams.get('depth2')
+    if (!depth2Id) return {
+      bodyPartId: null,
+      treatmentId: null,
+      bodyPartSubId: null,
+      treatmentSubId: null
+    }
+
+    const numericDepth2Id = Number(depth2Id)
+    return {
+      bodyPartId: null,  // 초기에는 null로 설정, 카테고리 로드 후 업데이트
+      treatmentId: null,
+      bodyPartSubId: null,
+      treatmentSubId: null
+    }
+  })
 
   // 카테고리 데이터 로드
   useEffect(() => {
@@ -154,7 +211,24 @@ export default function TreatmentPage() {
       if (data && data.length > 0) {
         setTotalCount(data[0].total_count)
         setHasMore(data[0].has_next)
-        setTreatments(prev => isLoadMore ? [...prev, ...data] : data)
+        const formattedTreatments = data.map((item: any) => ({
+          id: item.id,
+          title: item.title,
+          summary: item.summary,
+          hospital_name: item.hospital_name,
+          city_name: item.city_name,
+          thumbnail_url: item.thumbnail_url || '/images/placeholder.png',
+          price: item.price,
+          discount_price: item.discount_price,
+          discount_rate: item.discount_rate,
+          rating: Number(item.rating || 0),
+          comment_count: item.comment_count || 0,
+          categories: item.categories || [],
+          is_advertised: Boolean(item.is_advertised),
+          is_recommended: Boolean(item.is_recommended),
+          disableLink: true  // 링크 비활성화
+        }))
+        setTreatments(formattedTreatments)
       } 
       // 데이터가 없는 경우
       else {
@@ -241,25 +315,39 @@ export default function TreatmentPage() {
   const handleCategorySelect = (categoryId: number | null, isBodyPart: boolean, parentId?: number) => {
     console.log('Category selected:', { categoryId, isBodyPart, parentId })
     
+    const numericCategoryId = categoryId ? Number(categoryId) : null
+    
+    // filters 업데이트
     setFilters(prev => ({
       ...prev,
-      depth2_category_id: categoryId,
-      // depth2가 변경되면 depth3는 초기화
+      depth2_category_id: numericCategoryId,
       depth3_category_id: null
     }))
+
+    // categorySelection 상태 업데이트
+    setCategorySelection({
+      bodyPartId: isBodyPart ? numericCategoryId : null,
+      treatmentId: !isBodyPart ? numericCategoryId : null,
+      bodyPartSubId: null,
+      treatmentSubId: null
+    })
   }
 
   const handleSubCategorySelect = (subCategoryId: number | null, isBodyPart: boolean) => {
     console.log('SubCategory selected:', { subCategoryId, isBodyPart })
     
-    setFilters(prev => {
-      const newFilters = {
-        ...prev,
-        depth3_category_id: subCategoryId
-      }
-      console.log('Updated filters with depth3:', newFilters)
-      return newFilters
-    })
+    // filters 업데이트
+    setFilters(prev => ({
+      ...prev,
+      depth3_category_id: subCategoryId
+    }))
+
+    // categorySelection 상태 업데이트
+    setCategorySelection(prev => ({
+      ...prev,
+      bodyPartSubId: isBodyPart ? subCategoryId : null,
+      treatmentSubId: !isBodyPart ? subCategoryId : null
+    }))
   }
 
   const [showMobileFilter, setShowMobileFilter] = useState(false)
@@ -301,13 +389,8 @@ export default function TreatmentPage() {
           treatmentMethodSubs={treatmentMethodsData.subCategories}
           onCategorySelect={handleCategorySelect}
           onSubCategorySelect={handleSubCategorySelect}
-          // 현재 선택된 카테고리 상태 전달
-          initialSelection={{
-            bodyPartId: filters.depth2_category_id,
-            treatmentId: filters.depth2_category_id,
-            bodyPartSubId: filters.depth3_category_id,
-            treatmentSubId: filters.depth3_category_id
-          }}
+          // categorySelection 상태를 initialSelection으로 전달
+          initialSelection={categorySelection}
         />
 
         {/* PC 버전 */}
@@ -339,8 +422,12 @@ export default function TreatmentPage() {
               onSortChange={handleSortChange}
               totalCount={totalCount}
               renderItem={(treatment) => (
-                <Link href={`/treatments/detail?id=${treatment.id}`}>
-                  <TreatmentCard {...treatment} />
+                <Link 
+                  key={treatment.id}
+                  href={`/treatments/detail?id=${treatment.id}`}
+                  className="block"
+                >
+                  <TreatmentCard {...treatment} disableLink />
                 </Link>
               )}
             />
@@ -359,8 +446,12 @@ export default function TreatmentPage() {
             onSortChange={handleSortChange}
             totalCount={totalCount}
             renderItem={(treatment) => (
-              <Link href={`/treatments/detail?id=${treatment.id}`}>
-                <TreatmentCard {...treatment} />
+              <Link 
+                key={treatment.id}
+                href={`/treatments/detail?id=${treatment.id}`}
+                className="block"
+              >
+                <TreatmentCard {...treatment} disableLink />
               </Link>
             )}
           />

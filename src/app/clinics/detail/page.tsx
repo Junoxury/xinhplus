@@ -9,7 +9,7 @@ import bodyPartsData from '@/data/bodyParts.json'
 import treatmentMethodsData from '@/data/treatmentMethods.json'
 import { CategorySection } from '@/components/treatments/CategorySection'
 import Image from 'next/image'
-import { Share2, Heart, Home, Facebook, Phone, MessageCircle, Mail } from 'lucide-react'
+import { Share2, Heart, Home, Facebook, Phone, MessageCircle, Mail, Eye } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { ChevronDown, ChevronRight, ChevronLeft, ChevronUp } from 'lucide-react'
@@ -773,7 +773,11 @@ export default function TreatmentDetailPage() {
                 <span>•</span>
                 <span className="flex items-center">
                   ⭐️ {hospital?.average_rating.toFixed(1)}
-                  <span className="text-gray-400 ml-1">({hospital?.view_count.toLocaleString()})</span>
+                </span>
+                <span>•</span>
+                <span className="flex items-center gap-1">
+                  <Eye className="w-4 h-4" />
+                  {hospital?.view_count.toLocaleString()}
                 </span>
               </div>
 
