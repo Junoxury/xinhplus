@@ -148,15 +148,12 @@ export function TreatmentFilter({
   };
 
   const toggleLocation = (locationId: string) => {
-    // 새로운 locations 배열을 즉시 생성
     const newLocations = selectedLocations.includes(locationId)
-      ? [] // 이미 선택된 경우 선택 해제 (빈 배열)
-      : [locationId] // 새로 선택하는 경우 해당 ID만 포함
+      ? [] 
+      : [locationId]
 
-    // 상태 업데이트와 필터 적용을 동시에 처리
     setSelectedLocations(newLocations)
     
-    // 필터 즉시 적용
     onFilterChange({ 
       cityId: newLocations.length > 0 ? Number(newLocations[0]) : null,
       options: {
@@ -165,7 +162,7 @@ export function TreatmentFilter({
         is_member: selectedOptions.includes('is_member'),
         is_advertised: selectedOptions.includes('is_advertised')
       },
-      priceRange 
+      priceRange: [priceInputs.min, priceInputs.max]  // priceInputs 값 사용
     })
   }
 
@@ -176,23 +173,15 @@ export function TreatmentFilter({
     
     setSelectedOptions(newOptions)
     
-    // 디버깅 로그 추가
-    const filterOptions = {
-      is_recommended: newOptions.includes('is_recommended'),
-      has_discount: newOptions.includes('has_discount'),
-      is_member: newOptions.includes('is_member'),
-      is_advertised: newOptions.includes('is_advertised')
-    }
-    console.log('TreatmentFilter - toggleOption:', {
-      optionId,
-      newOptions,
-      filterOptions
-    })
-    
     onFilterChange({ 
       cityId: selectedLocations.length > 0 ? Number(selectedLocations[0]) : null,
-      options: filterOptions,
-      priceRange 
+      options: {
+        is_recommended: newOptions.includes('is_recommended'),
+        has_discount: newOptions.includes('has_discount'),
+        is_member: newOptions.includes('is_member'),
+        is_advertised: newOptions.includes('is_advertised')
+      },
+      priceRange: [priceInputs.min, priceInputs.max]  // priceInputs 값 사용
     })
   }
 
@@ -205,23 +194,22 @@ export function TreatmentFilter({
         is_member: selectedOptions.includes('is_member'),
         is_advertised: selectedOptions.includes('is_advertised')
       },
-      priceRange: priceRange
+      priceRange: [priceInputs.min, priceInputs.max]  // priceInputs 사용
     })
   }
 
   const removeLocation = (locationId: string) => {
-    setSelectedLocations([]) // 선택 해제 시 빈 배열로 설정
+    setSelectedLocations([]) 
     
-    // 필터 즉시 적용
     onFilterChange({
-      cityId: null, // 선택 해제 시 null
+      cityId: null,
       options: {
         is_recommended: selectedOptions.includes('is_recommended'),
         has_discount: selectedOptions.includes('has_discount'),
         is_member: selectedOptions.includes('is_member'),
         is_advertised: selectedOptions.includes('is_advertised')
       },
-      priceRange
+      priceRange: [priceInputs.min, priceInputs.max]  // priceInputs 사용
     })
   }
 

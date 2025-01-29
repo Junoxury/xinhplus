@@ -1,14 +1,50 @@
 'use client'
 
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Search, Menu, User } from 'lucide-react'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
+import { supabase } from '@/lib/supabase'
+
+interface UserData {
+  email: string
+}
 
 export function Header() {
   const pathname = usePathname()
+  const [user, setUser] = useState<UserData | null>(null)
+
+  useEffect(() => {
+    // 현재 로그인된 사용자 정보 가져오기
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user?.email) {
+        setUser({ email: user.email })
+      }
+    }
+
+    getUser()
+
+    // 인증 상태 변경 감지
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user?.email) {
+        setUser({ email: session.user.email })
+      } else {
+        setUser(null)
+      }
+    })
+
+    return () => {
+      subscription.unsubscribe()
+    }
+  }, [])
+
+  // 이메일의 첫 글자를 가져오는 함수
+  const getInitial = (email: string) => {
+    return email.charAt(0).toUpperCase()
+  }
 
   // 현재 경로가 특정 메뉴에 속하는지 확인하는 함수
   const isActiveMenu = (path: string) => {
@@ -57,23 +93,40 @@ export function Header() {
           ))}
         </nav>
 
-        {/* 로그인/회원가입 버튼 */}
-        <div className="w-[140px] flex justify-end">
-          <div className="md:hidden">
-            <Link href="/login">
-              <User className="h-5 w-5 text-gray-500 hover:text-primary" />
-            </Link>
-          </div>
-          <div className="hidden md:block">
-            <Link href="/login">
-              <Button 
-                variant="outline" 
-                className="font-medium hover:text-primary hover:border-primary"
-              >
-                로그인/회원가입
-              </Button>
-            </Link>
-          </div>
+        {/* 로그인/회원가입 또는 사용자 정보 */}
+        <div className="w-[240px] flex justify-end items-center">
+          {user ? (
+            // 로그인 상태
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-pink-500 text-white flex items-center justify-center font-medium">
+                  {getInitial(user.email)}
+                </div>
+                <span className="text-sm text-gray-600 hidden md:block">
+                  {user.email}
+                </span>
+              </div>
+            </div>
+          ) : (
+            // 비로그인 상태
+            <>
+              <div className="md:hidden">
+                <Link href="/login">
+                  <User className="h-5 w-5 text-gray-500 hover:text-primary" />
+                </Link>
+              </div>
+              <div className="hidden md:block">
+                <Link href="/login">
+                  <Button 
+                    variant="outline" 
+                    className="font-medium hover:text-primary hover:border-primary"
+                  >
+                    로그인/회원가입
+                  </Button>
+                </Link>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </header>

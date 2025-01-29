@@ -341,7 +341,7 @@ export default function HomePage() {
   const router = useRouter()
   const [popularTreatments, setPopularTreatments] = useState<PopularTreatment[]>([])
   const [cities, setCities] = useState<City[]>([])
-  const [selectedLocation, setSelectedLocation] = useState<number | null>(null)  // 이것만 유지
+  const [selectedLocation, setSelectedLocation] = useState<number | null>(null)
   const [localPopularTreatments, setLocalPopularTreatments] = useState<Record<number, any[]>>({})
   const [recommendedClinics, setRecommendedClinics] = useState<Hospital[]>([])
   const [latestReviews, setLatestReviews] = useState<Review[]>([])
@@ -448,12 +448,41 @@ export default function HomePage() {
     fetchCities()
   }, [])
 
+  // 로그인한 사용자의 city_id 가져오기
+  useEffect(() => {
+    const getUserCity = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      if (user?.user_metadata?.city_id) {
+        // 사용자의 city_id로 location 설정
+        setSelectedLocation(user.user_metadata.city_id)
+      }
+    }
+
+    getUserCity()
+
+    // 로그인 상태 변경 감지
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user?.user_metadata?.city_id) {
+        setSelectedLocation(session.user.user_metadata.city_id)
+      } else {
+        setSelectedLocation(null)
+      }
+    })
+
+    return () => {
+      subscription.unsubscribe()
+    }
+  }, [])
+
   // 지역별 인기 시술 데이터 로드
   useEffect(() => {
     const fetchLocalTreatments = async () => {
+      if (selectedLocation === null) return // 선택된 도시가 없으면 리턴
+
       try {
         const { data, error } = await supabase.rpc('get_treatments', {
-          p_city_id: selectedLocation,  // null이면 모든 도시의 데이터를 가져옴
+          p_city_id: selectedLocation,
           p_limit: 8,
           p_offset: 0
         })
@@ -477,16 +506,10 @@ export default function HomePage() {
           is_recommended: item.is_recommended
         }))
 
-        if (selectedLocation === null) {
-          // 선택된 도시가 없을 때는 전체 데이터를 저장
-          setLocalPopularTreatments({ 0: formattedTreatments })
-        } else {
-          // 특정 도시가 선택됐을 때
-          setLocalPopularTreatments(prev => ({
-            ...prev,
-            [selectedLocation]: formattedTreatments
-          }))
-        }
+        setLocalPopularTreatments(prev => ({
+          ...prev,
+          [selectedLocation]: formattedTreatments
+        }))
 
       } catch (error) {
         console.error('지역별 인기 시술 데이터 로드 실패:', error)

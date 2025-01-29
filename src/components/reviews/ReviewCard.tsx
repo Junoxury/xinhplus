@@ -1,10 +1,15 @@
-import { useState } from 'react'
+'use client'
+
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { supabase } from '@/lib/supabase'
 import Image from 'next/image'
 import { Star, Lock, MapPin, MessageCircle, Eye, Heart } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import Link from 'next/link'
+import { cn } from '@/lib/utils'
 
 interface ReviewCardProps {
   id: number
@@ -26,6 +31,7 @@ interface ReviewCardProps {
   isGoogle?: boolean
   likeCount: number
   layout?: string
+  is_locked?: boolean
 }
 
 export function ReviewCard({
@@ -47,8 +53,39 @@ export function ReviewCard({
   viewCount = 0,
   isGoogle = false,
   likeCount = 0,
-  layout = "grid"
+  layout = "grid",
+  is_locked = true
 }: ReviewCardProps) {
+  const router = useRouter()
+  const [isAuthenticatedState, setIsAuthenticatedState] = useState(false)
+
+  useEffect(() => {
+    // 로그인 상태 확인
+    const checkAuth = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      setIsAuthenticatedState(!!user)
+    }
+
+    checkAuth()
+
+    // 인증 상태 변경 감지
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsAuthenticatedState(!!session?.user)
+    })
+
+    return () => {
+      subscription.unsubscribe()
+    }
+  }, [])
+
+  const handleBeforeImageClick = (e: React.MouseEvent) => {
+    if (!isAuthenticatedState) {
+      e.preventDefault() // Link 이벤트 전파 방지
+      e.stopPropagation() // 이벤트 버블링 방지
+      router.push('/login')
+    }
+  }
+
   return (
     <Link 
       href={`/reviews/detail?id=${id}`}
@@ -73,15 +110,21 @@ export function ReviewCard({
               After
             </div>
           </div>
-          
+
           {/* Before 이미지 */}
-          <div className="relative w-1/2">
+          <div 
+            className="relative w-1/2"
+            onClick={handleBeforeImageClick}
+          >
             <div className="relative w-full h-full">
               <Image
                 src={beforeImage}
                 alt="Before"
                 fill
-                className="object-cover"
+                className={cn(
+                  "object-cover",
+                  !isAuthenticatedState && is_locked && "filter blur-sm"
+                )}
               />
             </div>
             
@@ -96,7 +139,7 @@ export function ReviewCard({
             )}
 
             {/* 로그인하지 않은 경우 Sign-in 오버레이로 부분적으로 가림 */}
-            {!isAuthenticated && (
+            {!isAuthenticatedState && is_locked && (
               <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center z-[105]">
                 <div className="text-center bg-black/40 px-6 py-4 rounded-xl backdrop-blur-sm">
                   <Lock className="w-8 h-8 text-white mx-auto mb-2" />

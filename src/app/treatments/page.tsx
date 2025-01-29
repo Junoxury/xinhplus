@@ -256,14 +256,15 @@ export default function TreatmentPage() {
       depth3_id: filters.depth3_category_id
     })
     
-    setPage(1)  // 페이지 초기화
-    fetchTreatments(1, filters, false)  // 새로운 데이터로 교체
+    setPage(1)
+    fetchTreatments(1, filters, false)
   }, [
     filters.depth2_category_id, 
     filters.depth3_category_id,
     filters.city_id,
     filters.is_recommended,
     filters.is_discounted,
+    filters.is_advertised,
     filters.price_from,
     filters.price_to,
     filters.sort_by
@@ -289,26 +290,23 @@ export default function TreatmentPage() {
     if (newFilters.options) {
       updatedFilters = {
         ...updatedFilters,
+        // false면 null로 변경하여 전달
         is_recommended: newFilters.options.is_recommended || null,
         is_discounted: newFilters.options.has_discount || null,
         is_advertised: newFilters.options.is_advertised || null
       }
     }
 
-    // 가격 범위 처리
+    // 가격 범위가 명시적으로 전달된 경우에만 업데이트
     if (newFilters.priceRange) {
-      const [from, to] = newFilters.priceRange
-      console.log('Processing price range:', { from, to })  // 디버깅 로그 추가
-      
-      // 가격이 기본값과 다른 경우에만 필터 적용
       updatedFilters = {
         ...updatedFilters,
-        price_from: from === 0 ? null : from,
-        price_to: to === 100000000 ? null : to
+        price_from: newFilters.priceRange[0],
+        price_to: newFilters.priceRange[1]
       }
     }
 
-    console.log('Updated filters with price:', updatedFilters)  // 디버깅 로그 추가
+    console.log('Updated filters:', updatedFilters)
     setFilters(updatedFilters)
   }
 
