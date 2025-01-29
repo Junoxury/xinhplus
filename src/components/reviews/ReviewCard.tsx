@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import Image from 'next/image'
-import { Star, Lock, MapPin, MessageCircle, Eye } from 'lucide-react'
+import { Star, Lock, MapPin, MessageCircle, Eye, Heart } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
@@ -21,6 +21,8 @@ interface ReviewCardProps {
   clinicName: string
   commentCount: number
   viewCount: number
+  isGoogle?: boolean
+  likeCount: number
 }
 
 export function ReviewCard({
@@ -38,7 +40,9 @@ export function ReviewCard({
   location,
   clinicName,
   commentCount = 0,
-  viewCount = 0
+  viewCount = 0,
+  isGoogle = false,
+  likeCount = 0
 }: ReviewCardProps) {
   return (
     <div className="rounded-2xl overflow-hidden bg-white shadow-lg">
@@ -126,15 +130,25 @@ export function ReviewCard({
           <span className="font-medium">{clinicName}</span>
         </div>
 
-        {/* 평점과 댓글 수, 조회수 */}
+        {/* 평점과 댓글 수, 조회수, 좋아요 수 */}
         <div className="flex justify-between items-center mb-3">
           <div className="flex items-center gap-4">
             <div className="flex">
               {[1, 2, 3, 4, 5].map((star) => (
-                <Star
-                  key={star}
-                  className={`w-4 h-4 ${star <= rating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`}
-                />
+                <div key={star} className="relative">
+                  {/* 빈 별 (회색) */}
+                  <Star className="w-4 h-4 text-gray-300" />
+                  
+                  {/* 채워진 별 (노란색) - width로 부분 채우기 */}
+                  <div 
+                    className="absolute inset-0 overflow-hidden"
+                    style={{ 
+                      width: `${Math.min(100, Math.max(0, (rating - (star - 1)) * 100))}%`
+                    }}
+                  >
+                    <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                  </div>
+                </div>
               ))}
             </div>
             <div className="flex items-center gap-3 text-gray-500 text-sm">
@@ -146,21 +160,27 @@ export function ReviewCard({
                 <Eye className="w-4 h-4 mr-1" />
                 <span>{viewCount}</span>
               </div>
+              <div className="flex items-center">
+                <Heart className="w-4 h-4 mr-1" />
+                <span>{likeCount}</span>
+              </div>
             </div>
           </div>
-          <div className="flex items-center text-sm text-gray-500 justify-center">
-            <div className="flex items-center">
-              <span className="flex items-center align-middle">Powered by</span>
-              <Image
-                src="https://www.google.com/images/poweredby_transparent/poweredby_000000.gif"
-                alt="Google"
-                width={48}
-                height={48}
-                className="ml-1 align-middle"
-                style={{ marginTop: '0.4em' }}
-              />
+          {isGoogle && (
+            <div className="flex items-center text-sm text-gray-500 justify-center">
+              <div className="flex items-center">
+                <span className="flex items-center align-middle">Powered by</span>
+                <Image
+                  src="https://www.google.com/images/poweredby_transparent/poweredby_000000.gif"
+                  alt="Google"
+                  width={48}
+                  height={48}
+                  className="ml-1 align-middle"
+                  style={{ marginTop: '0.4em' }}
+                />
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* 리뷰 내용 - 더보기 기능 제거하고 고정된 길이로 표시 */}

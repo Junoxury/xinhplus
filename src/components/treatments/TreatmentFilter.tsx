@@ -1,10 +1,12 @@
 import { Slider } from "@/components/ui/slider"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { X } from "lucide-react"
 import { supabase } from '@/lib/supabase'
 import { formatPrice } from '@/utils/format'
+import { Input } from "@/components/ui/input"
+import { debounce } from "lodash"
 
 interface FilterProps {
   onFilterChange: (filters: {
@@ -70,9 +72,10 @@ export function TreatmentFilter({
       .filter(([_, value]) => value)
       .map(([key]) => key)
   )
-  const [priceRange, setPriceRange] = useState(
-    initialFilters?.priceRange || [0, 100000000]
-  )
+  const [priceInputs, setPriceInputs] = useState({
+    min: initialFilters?.priceRange?.[0] || 0,
+    max: initialFilters?.priceRange?.[1] || 100000000
+  });
 
   useEffect(() => {
     const fetchCities = async () => {
@@ -99,23 +102,50 @@ export function TreatmentFilter({
     fetchCities()
   }, [])
 
-  const handlePriceChange = (value: number[]) => {
-    setPriceRange(value)
+  // 실제 필터 적용은 디바운스 처리
+  const debouncedFilterChange = useCallback(
+    debounce((newPriceRange: [number, number]) => {
+      onFilterChange({
+        ...initialFilters,
+        priceRange: newPriceRange
+      });
+    }, 500),
+    [initialFilters, onFilterChange]
+  );
+
+  // 슬라이더 변경 핸들러
+  const handlePriceChange = (values: number[]) => {
+    setPriceInputs({
+      min: values[0],
+      max: values[1]
+    });
+    debouncedFilterChange(values as [number, number]);
+  };
+
+  // 입력 박스 변경 핸들러
+  const handlePriceInputChange = (type: 'min' | 'max', value: string) => {
+    // 숫자와 쉼표만 허용
+    const cleanValue = value.replace(/[^0-9,]/g, '');
+    const numberValue = Number(cleanValue.replace(/,/g, ''));
     
-    // 디버깅 로그 추가
-    console.log('Price range changed:', value)
-    
-    onFilterChange({ 
-      cityId: selectedLocations.length > 0 ? Number(selectedLocations[0]) : null,
-      options: {
-        is_recommended: selectedOptions.includes('is_recommended'),
-        has_discount: selectedOptions.includes('has_discount'),
-        is_member: selectedOptions.includes('is_member'),
-        is_advertised: selectedOptions.includes('is_advertised')
-      },
-      priceRange: value  // 가격 범위 전달
-    })
-  }
+    if (isNaN(numberValue)) return;
+
+    const newInputs = {
+      ...priceInputs,
+      [type]: numberValue
+    };
+
+    // min이 max보다 크면 조정
+    if (type === 'min' && numberValue > priceInputs.max) {
+      newInputs.min = priceInputs.max;
+    }
+    if (type === 'max' && numberValue < priceInputs.min) {
+      newInputs.max = priceInputs.min;
+    }
+
+    setPriceInputs(newInputs);
+    debouncedFilterChange([newInputs.min, newInputs.max]);
+  };
 
   const toggleLocation = (locationId: string) => {
     // 새로운 locations 배열을 즉시 생성
@@ -196,7 +226,10 @@ export function TreatmentFilter({
   }
 
   const handleReset = () => {
-    setPriceRange([0, 100000000])
+    setPriceInputs({
+      min: 0,
+      max: 100000000
+    })
     setSelectedLocations([])
     setSelectedOptions([])
     onFilterChange({
@@ -255,19 +288,31 @@ export function TreatmentFilter({
 
           {/* 가격 범위 필터 - 조건부 렌더링 */}
           {showPriceFilter && (
-            <div>
-              <h4 className="text-sm font-medium mb-4">가격 범위</h4>
+            <div className="space-y-4">
+              <h4 className="text-sm font-medium">가격 범위</h4>
               <Slider
-                defaultValue={priceRange}
+                min={0}
                 max={100000000}
-                step={1000000}
-                value={priceRange}
+                step={100000}
+                value={[priceInputs.min, priceInputs.max]}
                 onValueChange={handlePriceChange}
-                className="mb-2"
+                className="my-4"
               />
-              <div className="flex justify-between text-sm text-gray-600">
-                <span>{formatPrice(priceRange[0])}</span>
-                <span>{formatPrice(priceRange[1])}</span>
+              <div className="flex items-center gap-2 text-sm">
+                <Input
+                  type="text"
+                  value={priceInputs.min.toLocaleString()}
+                  onChange={(e) => handlePriceInputChange('min', e.target.value)}
+                  className="text-right h-8"
+                />
+                <span className="text-gray-500">~</span>
+                <Input
+                  type="text"
+                  value={priceInputs.max.toLocaleString()}
+                  onChange={(e) => handlePriceInputChange('max', e.target.value)}
+                  className="text-right h-8"
+                />
+                <span className="text-gray-500">VND</span>
               </div>
             </div>
           )}
