@@ -39,7 +39,8 @@ ADD COLUMN view_count bigint DEFAULT 0,
 ADD COLUMN like_count bigint DEFAULT 0,
 ADD COLUMN average_rating decimal(2,1) DEFAULT 0.0 
     CHECK (average_rating >= 0.0 AND average_rating <= 5.0),
-ADD COLUMN has_discount boolean DEFAULT false;
+ADD COLUMN has_discount boolean DEFAULT false,
+ADD COLUMN comment_count bigint DEFAULT 0;
 
 -- 단일 컬럼 인덱스
 CREATE INDEX idx_hospitals_view_count ON hospitals (view_count DESC);
@@ -55,6 +56,7 @@ CREATE INDEX idx_hospitals_recommended ON hospitals(is_recommended);
 CREATE INDEX idx_hospital_categories_hospital ON hospital_categories(hospital_id);
 CREATE INDEX idx_hospital_categories_depth2 ON hospital_categories(depth2_category_id);
 CREATE INDEX idx_hospital_categories_depth3 ON hospital_categories(depth3_category_id);
+CREATE INDEX idx_hospitals_comment_count ON hospitals (comment_count DESC);
 
 
 

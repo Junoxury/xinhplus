@@ -18,6 +18,8 @@ interface ReviewListProps {
     clinicName: string
     commentCount: number
     viewCount: number
+    isGoogle?: boolean
+    likeCount: number
   }[]
   layout?: 'grid' | 'vertical'
 }
@@ -33,7 +35,25 @@ export function ReviewList({
     `}>
       {reviews.map((review) => (
         <div key={review.id}>
-          <ReviewCard {...review} />
+          <ReviewCard
+            id={review.id}
+            beforeImage={review.beforeImage}
+            afterImage={review.afterImage}
+            rating={review.rating}
+            content={review.content}
+            author={review.author}
+            authorImage={review.authorImage}
+            date={review.date}
+            treatmentName={review.treatmentName}
+            categories={review.categories}
+            location={review.location}
+            clinicName={review.clinicName}
+            commentCount={review.commentCount}
+            viewCount={review.viewCount}
+            isGoogle={review.isGoogle}
+            likeCount={review.likeCount}
+            layout={layout}
+          />
         </div>
       ))}
     </div>
