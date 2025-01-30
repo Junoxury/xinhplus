@@ -337,6 +337,27 @@ export default function TreatmentDetailPage() {
   // 상태 추가
   const [reviewSortBy, setReviewSortBy] = useState('latest')
 
+  // 인증 상태 추가
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+
+  // 인증 상태 확인을 위한 useEffect 추가
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      setIsAuthenticated(!!user)
+    }
+    checkAuth()
+
+    // 인증 상태 변경 감지
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsAuthenticated(!!session?.user)
+    })
+
+    return () => {
+      subscription.unsubscribe()
+    }
+  }, [])
+
   useEffect(() => {
     const fetchHospital = async () => {
       if (!hospitalId) return
@@ -504,11 +525,12 @@ export default function TreatmentDetailPage() {
             rating: review.rating || 0,
             content: review.content || '',
             author: review.author_name || '익명',
-            authorImage: review.author_image_url || '/images/default-avatar.png',
+            authorImage: review.author_image || '/images/default-avatar.png',
             date: new Date(review.created_at).toLocaleDateString(),
             treatmentName: review.treatment_name || '',
             categories: review.categories ? [review.categories.depth2?.name, review.categories.depth3?.name].filter(Boolean) : [],
-            isAuthenticated: false,
+            isAuthenticated: isAuthenticated,  // 인증 상태 전달
+            is_locked: !isAuthenticated,  // 로그인 상태에 따라 잠금 여부 결정
             location: review.location || '위치 정보 없음',
             clinicName: review.hospital_name || '',
             commentCount: review.comment_count || 0,
@@ -535,7 +557,7 @@ export default function TreatmentDetailPage() {
     }
 
     fetchReviews()
-  }, [hospital?.id, reviewPage, reviewSortBy])  // reviewSortBy 의존성 추가
+  }, [hospital?.id, reviewPage, reviewSortBy, isAuthenticated])  // reviewSortBy 의존성 추가
 
   // 더보기 버튼 핸들러
   const handleLoadMoreReviews = () => {
@@ -1061,7 +1083,7 @@ export default function TreatmentDetailPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {recentReviews.map((review) => (
               <div key={review.id} className="relative z-[1]">
-                <ReviewCard {...review} />
+                <ReviewCard {...review} initialIsAuthenticated={isAuthenticated} />
               </div>
             ))}
           </div>

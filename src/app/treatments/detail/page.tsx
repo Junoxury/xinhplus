@@ -10,7 +10,7 @@ import bodyPartsData from '@/data/bodyParts.json'
 import treatmentMethodsData from '@/data/treatmentMethods.json'
 import { CategorySection } from '@/components/treatments/CategorySection'
 import Image from 'next/image'
-import { Share2, Heart, Home, Facebook, Phone, MessageCircle } from 'lucide-react'
+import { Share2, Heart, Home, Facebook, Phone, MessageCircle, Eye } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { ChevronDown, ChevronRight, ChevronLeft } from 'lucide-react'
@@ -18,6 +18,7 @@ import { ReviewCard } from '@/components/reviews/ReviewCard'
 import { TreatmentCard } from '@/components/treatments/TreatmentCard'
 import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { useRouter } from 'next/navigation'
 
 // 더미 시술 데이터 수정
 const treatments = [
@@ -368,6 +369,15 @@ export default function TreatmentDetailPage() {
   const [similarTreatments, setSimilarTreatments] = useState<Treatment[]>([])
   const [loading, setLoading] = useState(false)
   const isFirstRender = useRef(true)
+  const [recentReviews, setRecentReviews] = useState<any[]>([])
+  const [reviewPage, setReviewPage] = useState(1)
+  const [hasMoreReviews, setHasMoreReviews] = useState(true)
+  const [loadingReviews, setLoadingReviews] = useState(false)
+  const [reviewSortBy, setReviewSortBy] = useState('latest')
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [isLiked, setIsLiked] = useState(false)
+  const REVIEWS_PER_PAGE = 6
+  const router = useRouter()
 
   // 페이지 데이터 fetch 함수
   const fetchTreatmentDetail = async (treatmentId: string) => {
@@ -549,59 +559,107 @@ export default function TreatmentDetailPage() {
     }
   }
 
-  // 리뷰 데이터
-  const recentReviews = [
-    {
-      id: '1',
-      beforeImage: 'https://images.babitalk.com/reviews/761e1935f7c55175f7c5d542fa5eb0fb/small/0d5b1c4c7f720f698946c7f6ab08f687/0.jpg',
-      afterImage: 'https://images.babitalk.com/reviews/761e1935f7c55175f7c5d542fa5eb0fb/small/0d5b1c4c7f720f698946c7f6ab08f687/0.jpg',
-      rating: 5,
-      content: '정말 만족스러운 결과였습니다. 자연스러운 라인으로 잘 수정해주셨어요. 처음에는 걱정이 많았는데, 상담부터 수술까지 정말 꼼꼼하게 설명해주시고 케어해주셔서 안심하고 진행할 수 있었습니다. 특히 수술 후 관리도 철저히 해주셔서 회복도 빠르게 됐어요. 주변 지인들도 자연스러워 보인다고 칭찬해주셔서 정말 기분이 좋습니다. 고민하시는 분들께 적극 추천드립니다! 앞으로도 꾸준히 관리 받으러 올 예정입니다.',
-      author: '김**',
-      date: '2024.03.15',
-      treatmentName: '듀얼픽스 광대축소',
-      categories: ['Pore', 'Bottom eyelid', 'Eyelid surgery'],
-      additionalImagesCount: 4,
-      isLocked: true,
-      location: '강남구',
-      clinicName: '뷰티클리닉',
-      commentCount: 10,
-      viewCount: 1234
-    },
-    {
-      id: '2',
-      beforeImage: 'https://images.babitalk.com/reviews/11f7cd5a760501fb579c71c8568dec16/small/0d5b1c4c7f720f698946c7f6ab08f687/0.jpg',
-      afterImage: 'https://images.babitalk.com/reviews/11f7cd5a760501fb579c71c8568dec16/small/0d5b1c4c7f720f698946c7f6ab08f687/0.jpg',
-      rating: 4,
-      content: '상담부터 수술까지 친절하게 설명해주시고 결과도 좋았습니다. 눈매교정과 눈밑지방 재배치를 동시에 진행했는데, 자연스러운 라인으로 잘 수정해주셨어요. 수술 후 붓기가 걱정됐는데 회복 기간도 생각보다 빨랐고, 지금은 완전히 자연스러워졌습니다. 특히 눈밑 지방 재배치 후에 눈밑 다크서클이 개선되어서 화장 없이도 좋아 보여요. 수술 전후 관리도 꼼꼼히 해주셔서 감사합니다.',
-      author: '이**',
-      date: '2024.03.14',
-      treatmentName: '눈매교정',
-      categories: ['Eyelid surgery', 'Bottom eyelid'],
-      additionalImagesCount: 2,
-      location: '강남구',
-      clinicName: '뷰티클리닉',
-      commentCount: 5,
-      viewCount: 856
-    },
-    {
-      id: '3',
-      beforeImage: 'https://images.babitalk.com/reviews/a6d4fcd97737723d01a6af30c8d10407/small/0d5b1c4c7f720f698946c7f6ab08f687/0.jpg',
-      afterImage: 'https://images.babitalk.com/reviews/a6d4fcd97737723d01a6af30c8d10407/small/0d5b1c4c7f720f698946c7f6ab08f687/0.jpg',
-      rating: 4,
-      content: '20대 후반부터 눈가 주름이 신경쓰여서 고민하다가 방문했는데, 정말 만족스러운 결과를 얻었습니다. 선생님께서 제 얼굴형과 특징을 고려해서 자연스러운 눈매를 만들어주셨어요. 수술 과정도 생각보다 편안했고, 회복도 빨랐습니다. 수술 후 붓기 관리부터 실밥 제거까지 꼼꼼하게 챙겨주셔서 감사했어요. 이제는 거울을 볼 때마다 기분이 좋아집니다. 다른 시술도 이곳에서 받고 싶어요!',
-      author: '이**',
-      date: '2024.03.14',
-      treatmentName: '눈매교정',
-      categories: ['Eyelid surgery', 'Bottom eyelid'],
-      additionalImagesCount: 3,
-      isLocked: true,
-      location: '강남구',
-      clinicName: '뷰티클리닉',
-      commentCount: 7,
-      viewCount: 2431
+  // 인증 상태 확인
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      setIsAuthenticated(!!user)
     }
-  ]
+    checkAuth()
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsAuthenticated(!!session?.user)
+    })
+
+    return () => {
+      subscription.unsubscribe()
+    }
+  }, [])
+
+  // 리뷰 데이터 로드
+  useEffect(() => {
+    const fetchReviews = async () => {
+      if (!treatment?.id) return
+      setLoadingReviews(true)
+
+      try {
+        const { data, error } = await supabase.rpc('get_reviews', {
+          p_treatment_id: treatment.id,  // 시술 ID로 필터링
+          p_hospital_id: null,
+          p_depth2_id: null,
+          p_depth2_treatment_id: null,
+          p_depth3_id: null,
+          p_depth3_treatment_id: null,
+          p_is_recommended: false,
+          p_has_discount: false,
+          p_is_member: false,
+          p_is_ad: false,
+          p_location: null,
+          p_min_price: 0,
+          p_max_price: 1000000000,
+          p_best_count: null,
+          p_sort_by: reviewSortBy,
+          p_limit: REVIEWS_PER_PAGE,
+          p_offset: (reviewPage - 1) * REVIEWS_PER_PAGE
+        })
+
+        if (error) {
+          console.error('리뷰 데이터 로드 에러:', error)
+          throw error
+        }
+
+        if (data && Array.isArray(data)) {
+          const formattedReviews = data.map(review => ({
+            id: review.id,
+            beforeImage: review.before_image || '',
+            afterImage: review.after_image || '',
+            additionalImagesCount: review.additional_images_count || 0,
+            rating: review.rating || 0,
+            content: review.content || '',
+            author: review.author_name || '익명',
+            authorImage: review.author_image || '/images/default-avatar.png',
+            date: new Date(review.created_at).toLocaleDateString(),
+            treatmentName: review.treatment_name || '',
+            categories: review.categories ? [review.categories.depth2?.name, review.categories.depth3?.name].filter(Boolean) : [],
+            isAuthenticated: isAuthenticated,
+            is_locked: !isAuthenticated,
+            location: review.location || '위치 정보 없음',
+            clinicName: review.hospital_name || '',
+            commentCount: review.comment_count || 0,
+            viewCount: review.view_count || 0,
+            isGoogle: review.is_google || false,
+            likeCount: review.like_count || 0
+          }))
+
+          if (reviewPage === 1) {
+            setRecentReviews(formattedReviews)
+          } else {
+            setRecentReviews(prev => [...prev, ...formattedReviews])
+          }
+          
+          setHasMoreReviews(data.length === REVIEWS_PER_PAGE)
+        }
+      } catch (error) {
+        console.error('리뷰 데이터 로드 실패:', error)
+      } finally {
+        setLoadingReviews(false)
+      }
+    }
+
+    fetchReviews()
+  }, [treatment?.id, reviewPage, reviewSortBy, isAuthenticated])
+
+  // 더보기 버튼 핸들러
+  const handleLoadMoreReviews = () => {
+    setReviewPage(prev => prev + 1)
+  }
+
+  // 정렬 변경 핸들러
+  const handleReviewSortChange = (value: string) => {
+    setReviewSortBy(value)
+    setReviewPage(1)
+    setRecentReviews([])
+  }
 
   // 인기 시술 데이터
   const popularTreatments = [
@@ -667,6 +725,55 @@ export default function TreatmentDetailPage() {
     }
   ]
 
+  // 좋아요 상태 확인
+  useEffect(() => {
+    const checkLikeStatus = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.user || !treatment?.id) return
+      
+      const { data, error } = await supabase
+        .rpc('check_treatment_like', {
+          p_treatment_id: treatment.id,
+          p_user_id: session.user.id
+        })
+
+      if (!error && data) {
+        setIsLiked(data)
+      }
+    }
+
+    checkLikeStatus()
+  }, [treatment?.id])
+
+  // 좋아요 토글 함수
+  const handleLike = async () => {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session?.user) {
+      router.push('/login')
+      return
+    }
+
+    try {
+      const { data, error } = await supabase
+        .rpc('toggle_treatment_like', {
+          p_treatment_id: treatment?.id,
+          p_user_id: session.user.id
+        })
+
+      if (error) throw error
+
+      if (data && data[0]) {
+        setIsLiked(data[0].is_liked)
+        setTreatment(prev => prev ? {
+          ...prev,
+          like_count: data[0].like_count
+        } : null)
+      }
+    } catch (error) {
+      console.error('Error toggling like:', error)
+    }
+  }
+
   if (!treatment) return null
 
   return (
@@ -695,8 +802,13 @@ export default function TreatmentDetailPage() {
                   <button className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-full transition-colors">
                     <Share2 className="w-5 h-5 text-gray-600" />
                   </button>
-                  <button className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-full transition-colors">
-                    <Heart className="w-5 h-5 text-gray-600" />
+                  <button 
+                    onClick={handleLike}
+                    className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-full transition-colors"
+                  >
+                    <Heart 
+                      className={`w-5 h-5 ${isLiked ? 'fill-current text-red-500' : 'text-gray-600'}`} 
+                    />
                   </button>
                   {treatment.website && (
                     <a 
@@ -743,10 +855,27 @@ export default function TreatmentDetailPage() {
                 <div className="flex items-center gap-2 text-gray-600 mb-4">
                   <span>{treatment.city_name} - {treatment.hospital_name}</span>
                   <span>•</span>
-                  <span className="flex items-center">
-                    ⭐️ {treatment.rating.toFixed(1)}
-                    <span className="text-gray-400 ml-1">({treatment.comment_count})</span>
-                  </span>
+                  <div className="flex items-center gap-3">
+                    <span className="flex items-center">
+                      ⭐️ {treatment.rating.toFixed(1)}
+                    </span>
+                    <div className="flex items-center gap-3 text-gray-500">
+                      <div className="flex items-center">
+                        <MessageCircle className="w-4 h-4 mr-1" />
+                        <span>{treatment.comment_count.toLocaleString()}</span>
+                      </div>
+                      <div className="flex items-center">
+                        <Eye className="w-4 h-4 mr-1" />
+                        <span>{treatment.view_count.toLocaleString()}</span>
+                      </div>
+                      <div className="flex items-center">
+                        <Heart 
+                          className={`w-4 h-4 mr-1 ${isLiked ? 'fill-current text-red-500' : 'text-gray-500'}`}
+                        />
+                        <span>{treatment.like_count.toLocaleString()}</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 {/* 요약 설명 */}
@@ -903,25 +1032,38 @@ export default function TreatmentDetailPage() {
           </div>
 
           {/* 리뷰 섹션 */}
-          <div id="review-section" className="bg-white rounded-2xl shadow-sm overflow-hidden p-6 scroll-mt-[112px]">
+          <div id="review-section" className="bg-white rounded-2xl shadow-sm overflow-hidden p-6">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-bold">실시간 후기</h2>
-              <Button variant="ghost" className="text-sm text-muted-foreground h-8 gap-1" asChild>
-                <Link href="/reviews">
-                  전체보기
-                  <ChevronRight className="h-4 w-4" />
-                </Link>
-              </Button>
+              <select 
+                className="h-9 px-3 text-sm border rounded-md bg-background"
+                value={reviewSortBy}
+                onChange={(e) => handleReviewSortChange(e.target.value)}
+              >
+                <option value="latest">최신순</option>
+                <option value="view_count">조회순</option>
+                <option value="like_count">좋아요순</option>
+              </select>
             </div>
-            <HorizontalScroll>
-              <div className="flex gap-4">
-                {recentReviews.map((review) => (
-                  <div key={review.id} className="w-[85vw] md:w-[600px] flex-shrink-0 relative z-[1]">
-                    <ReviewCard {...review} />
-                  </div>
-                ))}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {recentReviews.map((review) => (
+                <div key={review.id} className="relative z-[1]">
+                  <ReviewCard {...review} initialIsAuthenticated={isAuthenticated} />
+                </div>
+              ))}
+            </div>
+            {hasMoreReviews && (
+              <div className="mt-8 text-center">
+                <Button
+                  variant="outline"
+                  onClick={handleLoadMoreReviews}
+                  disabled={loadingReviews}
+                  className="w-full md:w-[200px]"
+                >
+                  {loadingReviews ? '로딩중...' : '더보기'}
+                </Button>
               </div>
-            </HorizontalScroll>
+            )}
           </div>
 
           {/* 같은 종류 시술 섹션 */}
