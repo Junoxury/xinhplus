@@ -22,8 +22,8 @@ export default function ConsultPage() {
   const [categories, setCategories] = useState<any[]>([])
   const [hospital_id, setHospitalId] = useState<string | null>(null)
   
-  const [selectedFile, setSelectedFile] = useState<File | null>(null)
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([])
+  const [previewUrls, setPreviewUrls] = useState<string[]>([])
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
   const [uploadedImageUrls, setUploadedImageUrls] = useState<string[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -154,12 +154,10 @@ export default function ConsultPage() {
   }, [treatment_id])
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
-    const file = acceptedFiles[0]
-    if (file) {
-      setSelectedFile(file)
-      const url = URL.createObjectURL(file)
-      setPreviewUrl(url)
-    }
+    setSelectedFiles(prev => [...prev, ...acceptedFiles])
+    
+    const newPreviewUrls = acceptedFiles.map(file => URL.createObjectURL(file))
+    setPreviewUrls(prev => [...prev, ...newPreviewUrls])
   }, [])
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -167,15 +165,14 @@ export default function ConsultPage() {
     accept: {
       'image/*': ['.png', '.jpg', '.jpeg', '.gif']
     },
-    multiple: false
+    multiple: true
   })
 
-  const handleRemoveFile = () => {
-    setSelectedFile(null)
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl)
-      setPreviewUrl(null)
-    }
+  const handleRemoveFile = (index: number) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index))
+    
+    URL.revokeObjectURL(previewUrls[index])
+    setPreviewUrls(prev => prev.filter((_, i) => i !== index))
   }
 
   // 입력값 변경 핸들러
@@ -259,31 +256,31 @@ export default function ConsultPage() {
       }
 
       // 3. 이미지 저장 (이미지가 있는 경우)
-      if (selectedFile) {
-        // 이미지 업로드
-        const timestamp = Date.now()
-        const fileExt = selectedFile.name.split('.').pop()
-        const filePath = `consultations/${consultation.id}/${timestamp}.${fileExt}`
+      if (selectedFiles.length > 0) {
+        for (const file of selectedFiles) {
+          const timestamp = Date.now()
+          const fileExt = file.name.split('.').pop()
+          const filePath = `consultations/${consultation.id}/${timestamp}.${fileExt}`
 
-        const { error: uploadError } = await supabase.storage
-          .from('images')
-          .upload(filePath, selectedFile)
+          const { error: uploadError } = await supabase.storage
+            .from('images')
+            .upload(filePath, file)
 
-        if (uploadError) throw uploadError
+          if (uploadError) throw uploadError
 
-        // 업로드된 이미지 URL 저장
-        const { data: { publicUrl } } = supabase.storage
-          .from('images')
-          .getPublicUrl(filePath)
+          const { data: { publicUrl } } = supabase.storage
+            .from('images')
+            .getPublicUrl(filePath)
 
-        const { error: imageError } = await supabase
-          .from('consultation_images')
-          .insert({
-            consultation_id: consultation.id,
-            image_url: publicUrl
-          })
+          const { error: imageError } = await supabase
+            .from('consultation_images')
+            .insert({
+              consultation_id: consultation.id,
+              image_url: publicUrl
+            })
 
-        if (imageError) throw imageError
+          if (imageError) throw imageError
+        }
       }
 
       // 성공 메시지 표시
@@ -417,7 +414,7 @@ export default function ConsultPage() {
           {/* 프로필 이미지 업로드 */}
           <div className="space-y-2">
             <label className="block text-sm">
-              Profile Image
+              Images
             </label>
             <div {...getRootProps()} className="relative">
               <div className={`
@@ -425,7 +422,7 @@ export default function ConsultPage() {
                 ${isDragActive ? 'border-pink-500 bg-pink-50' : 'border-gray-200'}
                 hover:border-pink-500 cursor-pointer
               `}>
-                <input {...getInputProps()} accept="image/*" capture="environment" />
+                <input {...getInputProps()} />
                 
                 <div className="flex flex-col items-center gap-2 text-gray-500">
                   <Upload className="w-8 h-8" />
@@ -447,25 +444,29 @@ export default function ConsultPage() {
                 </div>
               </div>
 
-              {previewUrl && (
-                <div className="mt-4 relative inline-block">
-                  <Image
-                    src={previewUrl}
-                    alt="Preview"
-                    width={200}
-                    height={200}
-                    className="rounded-lg"
-                    objectFit="cover"
-                  />
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleRemoveFile()
-                    }}
-                    className="absolute -top-2 -right-2 bg-white rounded-full shadow-md p-1"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
+              {previewUrls.length > 0 && (
+                <div className="mt-4 grid grid-cols-2 gap-4">
+                  {previewUrls.map((url, index) => (
+                    <div key={index} className="relative">
+                      <Image
+                        src={url}
+                        alt={`Preview ${index + 1}`}
+                        width={200}
+                        height={200}
+                        className="rounded-lg w-full h-auto"
+                        objectFit="cover"
+                      />
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleRemoveFile(index)
+                        }}
+                        className="absolute -top-2 -right-2 bg-white rounded-full shadow-md p-1"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
