@@ -89,14 +89,6 @@ BEGIN
     SELECT COUNT(*) as total
     FROM filtered_reviews
   ),
-  review_counts AS (
-    SELECT 
-      reviews.id,
-      COUNT(DISTINCT review_comments.id) as comment_count
-    FROM reviews
-    LEFT JOIN review_comments ON reviews.id = review_comments.review_id
-    GROUP BY reviews.id
-  ),
   review_images AS (
     SELECT 
       ri.review_id,
@@ -150,7 +142,7 @@ BEGIN
     r.rating,
     r.view_count,
     r.like_count,
-    rc.comment_count,
+    r.comment_count::BIGINT,
     r.author_id,
     (u.raw_user_meta_data->>'full_name')::VARCHAR as author_name,
     (u.raw_user_meta_data->>'avatar_url')::VARCHAR as author_image,
@@ -172,7 +164,6 @@ BEGIN
   ) r
   CROSS JOIN total_counts tc
   CROSS JOIN has_more_check hmc
-  LEFT JOIN review_counts rc ON r.id = rc.id
   LEFT JOIN review_images ri ON r.id = ri.review_id
   LEFT JOIN auth.users u ON r.author_id = u.id
   LEFT JOIN treatments t ON r.treatment_id = t.id

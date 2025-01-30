@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button'
 import { ChevronDown, ChevronRight, ChevronLeft, ChevronUp } from 'lucide-react'
 import { ReviewCard } from '@/components/reviews/ReviewCard'
 import { TreatmentCard } from '@/components/treatments/TreatmentCard'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { GoogleMap } from '@/components/map/GoogleMap'
 import { useToast } from "@/hooks/use-toast"
@@ -221,52 +221,12 @@ export interface TreatmentCardProps {
 
 function HorizontalScroll({ children }: { children: React.ReactNode }) {
   const scrollRef = useRef<HTMLDivElement>(null)
-  const isDown = useRef(false)
-  const startX = useRef(0)
-  const scrollLeft = useRef(0)
 
-  const onMouseDown = (e: MouseEvent) => {
-    isDown.current = true
-    if (scrollRef.current) {
-      scrollRef.current.style.cursor = 'grabbing'
-      startX.current = e.pageX - scrollRef.current.offsetLeft
-      scrollLeft.current = scrollRef.current.scrollLeft
-    }
-  }
-
-  const onMouseLeave = () => {
-    isDown.current = false
-    if (scrollRef.current) {
-      scrollRef.current.style.cursor = 'grab'
-    }
-  }
-
-  const onMouseUp = () => {
-    isDown.current = false
-    if (scrollRef.current) {
-      scrollRef.current.style.cursor = 'grab'
-    }
-  }
-
-  const onMouseMove = (e: MouseEvent) => {
-    if (!isDown.current) return
-    e.preventDefault()
-    if (scrollRef.current) {
-      const x = e.pageX - scrollRef.current.offsetLeft
-      const walk = (x - startX.current) * 2
-      scrollRef.current.scrollLeft = scrollLeft.current - walk
-    }
-  }
-
-  const scrollTo = (direction: 'left' | 'right') => {
+  const handleScroll = (direction: 'left' | 'right') => {
     if (scrollRef.current) {
       const scrollAmount = scrollRef.current.clientWidth * 0.8
-      const newScrollLeft = direction === 'left' 
-        ? scrollRef.current.scrollLeft - scrollAmount
-        : scrollRef.current.scrollLeft + scrollAmount
-      
-      scrollRef.current.scrollTo({
-        left: newScrollLeft,
+      scrollRef.current.scrollBy({
+        left: direction === 'left' ? -scrollAmount : scrollAmount,
         behavior: 'smooth'
       })
     }
@@ -276,13 +236,13 @@ function HorizontalScroll({ children }: { children: React.ReactNode }) {
     <div className="group relative">
       {/* 좌우 화살표 */}
       <button
-        onClick={() => scrollTo('left')}
+        onClick={() => handleScroll('left')}
         className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white/80 rounded-full p-2 shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 -translate-x-1/2"
       >
         <ChevronLeft className="w-6 h-6" />
       </button>
       <button
-        onClick={() => scrollTo('right')}
+        onClick={() => handleScroll('right')}
         className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white/80 rounded-full p-2 shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 translate-x-1/2"
       >
         <ChevronRight className="w-6 h-6" />
@@ -291,11 +251,7 @@ function HorizontalScroll({ children }: { children: React.ReactNode }) {
       {/* 스크롤 컨테이너 */}
       <div
         ref={scrollRef}
-        className="flex overflow-x-auto snap-x snap-mandatory scrollbar-hide horizontal-scroll -mx-4 px-4"
-        onMouseDown={onMouseDown}
-        onMouseLeave={onMouseLeave}
-        onMouseUp={onMouseUp}
-        onMouseMove={onMouseMove}
+        className="flex overflow-x-auto snap-x snap-mandatory scrollbar-hide -mx-4 px-4"
       >
         {children}
       </div>
@@ -368,6 +324,19 @@ export default function TreatmentDetailPage() {
   const [page, setPage] = useState(0)
   const ITEMS_PER_PAGE = 8
 
+  const router = useRouter()
+  const [isLiked, setIsLiked] = useState(false)
+
+  // 리뷰 관련 상태들
+  const [recentReviews, setRecentReviews] = useState<any[]>([])
+  const [reviewPage, setReviewPage] = useState(1)
+  const [hasMoreReviews, setHasMoreReviews] = useState(true)
+  const [loadingReviews, setLoadingReviews] = useState(false)
+  const REVIEWS_PER_PAGE = 6
+
+  // 상태 추가
+  const [reviewSortBy, setReviewSortBy] = useState('latest')
+
   useEffect(() => {
     const fetchHospital = async () => {
       if (!hospitalId) return
@@ -392,52 +361,84 @@ export default function TreatmentDetailPage() {
   }, [hospitalId])
 
   useEffect(() => {
-    const handleScroll = () => {
-      // 탭 고정 처리
-      if (tabRef.current && tabContainerRef.current) {
-        const tabPosition = tabContainerRef.current.getBoundingClientRect().top
-        if (tabPosition <= 56) { // 헤더 높이
-          tabRef.current.classList.add('fixed', 'top-[56px]', 'left-0', 'right-0', 'z-10', 'bg-white', 'shadow-sm')
-          tabContainerRef.current.style.paddingTop = `${tabRef.current.offsetHeight}px`
-        } else {
-          tabRef.current.classList.remove('fixed', 'top-[56px]', 'left-0', 'right-0', 'z-10', 'bg-white', 'shadow-sm')
-          tabContainerRef.current.style.paddingTop = '0'
-        }
+    let isScrolling: NodeJS.Timeout
 
-        // 활성 탭 변경
-        const sections = ['detail-section', 'review-section', 'similar-section']
-        for (const sectionId of sections) {
-          const section = document.getElementById(sectionId)
-          if (section) {
-            const rect = section.getBoundingClientRect()
-            if (rect.top <= 112 && rect.bottom >= 112) { // 헤더 높이 + 탭 높이
-              setActiveTab(sectionId)
-              break
-            }
+    const handleScroll = () => {
+      if (tabRef.current && tabContainerRef.current) {
+        // 탭 고정 처리만 수행
+        const tabPosition = tabContainerRef.current.getBoundingClientRect().top
+        if (tabPosition <= 56) {
+          if (!tabRef.current.classList.contains('fixed')) {
+            tabRef.current.classList.add('fixed', 'top-[56px]', 'left-0', 'right-0', 'z-10', 'bg-white', 'shadow-sm')
+            tabContainerRef.current.style.paddingTop = `${tabRef.current.offsetHeight}px`
+          }
+        } else {
+          if (tabRef.current.classList.contains('fixed')) {
+            tabRef.current.classList.remove('fixed', 'top-[56px]', 'left-0', 'right-0', 'z-10', 'bg-white', 'shadow-sm')
+            tabContainerRef.current.style.paddingTop = '0'
           }
         }
+
+        // 디바운스된 탭 활성화 처리
+        clearTimeout(isScrolling)
+        isScrolling = setTimeout(() => {
+          const sections = ['detail-section', 'review-section', 'similar-section']
+          for (const sectionId of sections) {
+            const section = document.getElementById(sectionId)
+            if (section) {
+              const rect = section.getBoundingClientRect()
+              if (rect.top <= 120 && rect.bottom > 120) {
+                setActiveTab(sectionId)
+                break
+              }
+            }
+          }
+        }, 100)
       }
     }
 
-    window.addEventListener('scroll', handleScroll)
-    return () => window.removeEventListener('scroll', handleScroll)
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => {
+      window.removeEventListener('scroll', handleScroll)
+      clearTimeout(isScrolling)
+    }
   }, [])
 
+  // 탭 클릭 시 스크롤 처리
   const scrollToSection = (sectionId: string) => {
     const element = document.getElementById(sectionId)
-    const headerHeight = 56 // 헤더 높이
-    const tabHeight = 56 // 탭 높이
-    const totalOffset = headerHeight + tabHeight // 총 오프셋
-
     if (element) {
-      const elementPosition = element.getBoundingClientRect().top
-      const offsetPosition = elementPosition + window.pageYOffset - totalOffset
-
+      setActiveTab(sectionId)
+      const offset = element.offsetTop - 112
       window.scrollTo({
-        top: offsetPosition,
+        top: offset,
         behavior: 'smooth'
       })
     }
+  }
+
+  // 더보기 버튼 클릭 핸들러
+  const handleShowMore = () => {
+    setShowFullImage(true)
+    
+    // DOM 업데이트 후 스크롤 위치 조정
+    requestAnimationFrame(() => {
+      const detailSection = document.getElementById('detail-section')
+      if (detailSection) {
+        const currentScrollPosition = window.scrollY
+        const sectionTop = detailSection.offsetTop
+        const headerHeight = 56
+        const tabHeight = 56
+        
+        // 현재 스크롤 위치가 섹션 내부인 경우에만 스크롤 조정
+        if (currentScrollPosition > sectionTop - (headerHeight + tabHeight)) {
+          window.scrollTo({
+            top: sectionTop - (headerHeight + tabHeight),
+            behavior: 'smooth'
+          })
+        }
+      }
+    })
   }
 
   const handleShare = async () => {
@@ -460,123 +461,86 @@ export default function TreatmentDetailPage() {
     }
   }
 
-  // 리뷰 데이터
-  const recentReviews = [
-    {
-      id: '1',
-      beforeImage: 'https://images.babitalk.com/reviews/761e1935f7c55175f7c5d542fa5eb0fb/small/0d5b1c4c7f720f698946c7f6ab08f687/0.jpg',
-      afterImage: 'https://images.babitalk.com/reviews/761e1935f7c55175f7c5d542fa5eb0fb/small/0d5b1c4c7f720f698946c7f6ab08f687/0.jpg',
-      rating: 5,
-      content: '정말 만족스러운 결과였습니다. 자연스러운 라인으로 잘 수정해주셨어요. 처음에는 걱정이 많았는데, 상담부터 수술까지 정말 꼼꼼하게 설명해주시고 케어해주셔서 안심하고 진행할 수 있었습니다. 특히 수술 후 관리도 철저히 해주셔서 회복도 빠르게 됐어요. 주변 지인들도 자연스러워 보인다고 칭찬해주셔서 정말 기분이 좋습니다. 고민하시는 분들께 적극 추천드립니다! 앞으로도 꾸준히 관리 받으러 올 예정입니다.',
-      author: '김**',
-      date: '2024.03.15',
-      treatmentName: '듀얼픽스 광대축소',
-      categories: ['Pore', 'Bottom eyelid', 'Eyelid surgery'],
-      additionalImagesCount: 4,
-      isLocked: true,
-      location: '강남구',
-      clinicName: '뷰티클리닉',
-      commentCount: 10,
-      viewCount: 1234
-    },
-    {
-      id: '2',
-      beforeImage: 'https://images.babitalk.com/reviews/11f7cd5a760501fb579c71c8568dec16/small/0d5b1c4c7f720f698946c7f6ab08f687/0.jpg',
-      afterImage: 'https://images.babitalk.com/reviews/11f7cd5a760501fb579c71c8568dec16/small/0d5b1c4c7f720f698946c7f6ab08f687/0.jpg',
-      rating: 4,
-      content: '상담부터 수술까지 친절하게 설명해주시고 결과도 좋았습니다. 눈매교정과 눈밑지방 재배치를 동시에 진행했는데, 자연스러운 라인으로 잘 수정해주셨어요. 수술 후 붓기가 걱정됐는데 회복 기간도 생각보다 빨랐고, 지금은 완전히 자연스러워졌습니다. 특히 눈밑 지방 재배치 후에 눈밑 다크서클이 개선되어서 화장 없이도 좋아 보여요. 수술 전후 관리도 꼼꼼히 해주셔서 감사합니다.',
-      author: '이**',
-      date: '2024.03.14',
-      treatmentName: '눈매교정',
-      categories: ['Eyelid surgery', 'Bottom eyelid'],
-      additionalImagesCount: 2,
-      location: '강남구',
-      clinicName: '뷰티클리닉',
-      commentCount: 5,
-      viewCount: 856
-    },
-    {
-      id: '3',
-      beforeImage: 'https://images.babitalk.com/reviews/a6d4fcd97737723d01a6af30c8d10407/small/0d5b1c4c7f720f698946c7f6ab08f687/0.jpg',
-      afterImage: 'https://images.babitalk.com/reviews/a6d4fcd97737723d01a6af30c8d10407/small/0d5b1c4c7f720f698946c7f6ab08f687/0.jpg',
-      rating: 4,
-      content: '20대 후반부터 눈가 주름이 신경쓰여서 고민하다가 방문했는데, 정말 만족스러운 결과를 얻었습니다. 선생님께서 제 얼굴형과 특징을 고려해서 자연스러운 눈매를 만들어주셨어요. 수술 과정도 생각보다 편안했고, 회복도 빨랐습니다. 수술 후 붓기 관리부터 실밥 제거까지 꼼꼼하게 챙겨주셔서 감사했어요. 이제는 거울을 볼 때마다 기분이 좋아집니다. 다른 시술도 이곳에서 받고 싶어요!',
-      author: '이**',
-      date: '2024.03.14',
-      treatmentName: '눈매교정',
-      categories: ['Eyelid surgery', 'Bottom eyelid'],
-      additionalImagesCount: 3,
-      isLocked: true,
-      location: '강남구',
-      clinicName: '뷰티클리닉',
-      commentCount: 7,
-      viewCount: 2431
-    }
-  ]
+  // 리뷰 데이터 로드 함수에서 정렬 기준 적용
+  useEffect(() => {
+    const fetchReviews = async () => {
+      if (!hospital?.id) return
+      setLoadingReviews(true)
 
-  // 인기 시술 데이터
-  const popularTreatments = [
-    {
-      id: '1',
-      image: 'https://web.babitalk.com/_next/image?url=https%3A%2F%2Fimages.babitalk.com%2Fimages%2Fd63eb6911fceb3ec8341be1df5c73b92%2Fbanner_img_1735796998.jpg&w=384&q=75',
-      title: '듀얼픽스 광대축소',
-      description: '안체적인 윤곽, 광대축소, 사각턱, 턱끝',
-      clinic: 'DR.AD BEAUTY CLINIC',
-      location: 'Hanoi - Thẩm mỹ viện Nana',
-      originalPrice: 6000000,
-      discountRate: 45,
-      rating: 5.0,
-      reviewCount: 12546,
-      categories: ['nose', 'Bottom eyelid', 'Eyelid surgery'],
-      likes: 128,
-      isAd: true,
-      isNew: true
-    },
-    {
-      id: '2',
-      image: 'https://web.babitalk.com/_next/image?url=https%3A%2F%2Fimages.babitalk.com%2Fimages%2F27e2ccb0cf265a3cb18ce6eff35f4174%2Fbanner_img_1723540041.jpg&w=384&q=75',
-      title: '눈매교정',
-      description: '자연스러운 눈매 교정과 눈밑 지방 재배치로 생기있는 눈매를 만듭니다',
-      clinic: '뷰티라인 성형외과',
-      location: 'Hanoi - Thẩm mỹ viện Beauty',
-      originalPrice: 3500000,
-      discountRate: 30,
-      rating: 4.8,
-      reviewCount: 8234,
-      categories: ['Eyelid surgery', 'Bottom eyelid'],
-      likes: 95,
-      isNew: true
-    },
-    {
-      id: '3',
-      image: 'https://web.babitalk.com/_next/image?url=https%3A%2F%2Fimages.babitalk.com%2Fimages%2Fc50a6cece7c2170e489c6582a13888c4%2Fbanner_img_1731635515.jpg&w=384&q=75',
-      title: '이마 지방이식',
-      description: '자연스러운 이마 라인과 탄력있는 피부를 동시에',
-      clinic: '미소성형외과',
-      location: 'Ho Chi Minh - Thẩm mỹ viện Smile',
-      originalPrice: 4500000,
-      discountRate: 35,
-      rating: 4.9,
-      reviewCount: 5632,
-      categories: ['Forehead', 'Fat transfer'],
-      likes: 76,
-      isAd: true
-    },
-    {
-      id: '4',
-      image: 'https://web.babitalk.com/_next/image?url=https%3A%2F%2Fimages.babitalk.com%2Fimages%2F89de9f71c6e88351e0f8f02db5cad770%2Fbanner_img_1724718171.jpg&w=384&q=75',
-      title: '코끝 성형',
-      description: '자연스러운 코 라인을 위한 맞춤 성형',
-      clinic: '라인성형외과',
-      location: 'Hanoi - Thẩm mỹ viện Line',
-      originalPrice: 2800000,
-      discountRate: 40,
-      rating: 4.7,
-      reviewCount: 3421,
-      categories: ['Nose', 'Filler'],
-      likes: 112
+      try {
+        const { data, error } = await supabase.rpc('get_reviews', {
+          p_treatment_id: null,
+          p_hospital_id: hospital.id,
+          p_depth2_id: null,
+          p_depth2_treatment_id: null,
+          p_depth3_id: null,
+          p_depth3_treatment_id: null,
+          p_is_recommended: false,
+          p_has_discount: false,
+          p_is_member: false,
+          p_is_ad: false,
+          p_location: null,
+          p_min_price: 0,
+          p_max_price: 1000000000,
+          p_best_count: null,
+          p_sort_by: reviewSortBy,  // 정렬 기준 적용
+          p_limit: REVIEWS_PER_PAGE,
+          p_offset: (reviewPage - 1) * REVIEWS_PER_PAGE
+        })
+
+        if (error) {
+          console.error('리뷰 데이터 로드 에러:', error)
+          throw error
+        }
+
+        console.log('받아온 리뷰 데이터:', data) // 데이터 확인용 로그
+
+        if (data && Array.isArray(data)) {
+          const formattedReviews = data.map(review => ({
+            id: review.id,
+            beforeImage: review.before_image || '',
+            afterImage: review.after_image || '',
+            additionalImagesCount: review.additional_images_count || 0,
+            rating: review.rating || 0,
+            content: review.content || '',
+            author: review.author_name || '익명',
+            authorImage: review.author_image_url || '/images/default-avatar.png',
+            date: new Date(review.created_at).toLocaleDateString(),
+            treatmentName: review.treatment_name || '',
+            categories: review.categories ? [review.categories.depth2?.name, review.categories.depth3?.name].filter(Boolean) : [],
+            isAuthenticated: false,
+            location: review.location || '위치 정보 없음',
+            clinicName: review.hospital_name || '',
+            commentCount: review.comment_count || 0,
+            viewCount: review.view_count || 0,
+            isGoogle: review.is_google || false,
+            likeCount: review.like_count || 0
+          }))
+
+          console.log('변환된 리뷰 데이터:', formattedReviews) // 변환된 데이터 확인용 로그
+
+          if (reviewPage === 1) {
+            setRecentReviews(formattedReviews)
+          } else {
+            setRecentReviews(prev => [...prev, ...formattedReviews])
+          }
+          
+          setHasMoreReviews(data.length === REVIEWS_PER_PAGE)
+        }
+      } catch (error) {
+        console.error('리뷰 데이터 로드 실패:', error)
+      } finally {
+        setLoadingReviews(false)
+      }
     }
-  ]
+
+    fetchReviews()
+  }, [hospital?.id, reviewPage, reviewSortBy])  // reviewSortBy 의존성 추가
+
+  // 더보기 버튼 핸들러
+  const handleLoadMoreReviews = () => {
+    setReviewPage(prev => prev + 1)
+  }
 
   // 병원의 모든 시술 가져오기
   const fetchAllTreatments = useCallback(async (isLoadMore = false) => {
@@ -678,6 +642,67 @@ export default function TreatmentDetailPage() {
     fetchFeaturedTreatments()
   }, [hospital?.id])
 
+  // 좋아요 상태 확인
+  useEffect(() => {
+    const checkLikeStatus = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.user || !hospitalId) return
+      
+      const { data, error } = await supabase
+        .rpc('check_hospital_like', {
+          p_hospital_id: Number(hospitalId),
+          p_user_id: session.user.id
+        })
+
+      if (!error && data) {
+        setIsLiked(data)
+      }
+    }
+
+    checkLikeStatus()
+  }, [hospitalId])
+
+  // 좋아요 토글 함수
+  const handleLike = async () => {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session?.user) {
+      router.push('/login')
+      return
+    }
+
+    try {
+      const { data, error } = await supabase
+        .rpc('toggle_hospital_like', {
+          p_hospital_id: Number(hospitalId),
+          p_user_id: session.user.id
+        })
+
+      if (error) throw error
+
+      if (data && data[0]) {
+        setIsLiked(data[0].is_liked)
+        setHospital(prev => prev ? {
+          ...prev,
+          like_count: data[0].like_count
+        } : null)
+      }
+    } catch (error) {
+      console.error('Error toggling like:', error)
+      toast({
+        variant: "destructive",
+        description: "오류가 발생했습니다. 다시 시도해주세요.",
+        duration: 2000,
+      })
+    }
+  }
+
+  // 정렬 변경 핸들러
+  const handleReviewSortChange = (value: string) => {
+    setReviewSortBy(value)
+    setReviewPage(1)  // 정렬 변경 시 페이지 초기화
+    setRecentReviews([])  // 리뷰 목록 초기화
+  }
+
   return (
     <main className="min-h-screen bg-gray-50 pb-[72px] md:pb-[88px]">
       <TreatmentBanner />
@@ -724,8 +749,13 @@ export default function TreatmentDetailPage() {
                 >
                   <Share2 className="w-5 h-5 text-gray-600" />
                 </button>
-                <button className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-full transition-colors">
-                  <Heart className="w-5 h-5 text-gray-600" />
+                <button 
+                  onClick={handleLike}
+                  className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <Heart 
+                    className={`w-5 h-5 ${isLiked ? 'fill-current text-red-500' : 'text-gray-600'}`} 
+                  />
                 </button>
                 {hospital?.website && (
                   <Link 
@@ -779,6 +809,14 @@ export default function TreatmentDetailPage() {
                   <Eye className="w-4 h-4" />
                   {hospital?.view_count.toLocaleString()}
                 </span>
+                <span>•</span>
+                <span className="flex items-center gap-1">
+                  <Heart 
+                    className={`w-4 h-4 cursor-pointer ${isLiked ? 'fill-current text-red-500' : ''}`}
+                    onClick={handleLike}
+                  />
+                  {hospital?.like_count?.toLocaleString() || 0}
+                </span>
               </div>
 
               {/* 요약 설명 */}
@@ -817,27 +855,27 @@ export default function TreatmentDetailPage() {
           {/* 탭 메뉴 */}
           <div ref={tabRef} className="container mx-auto px-4">
             <div className="flex w-full border border-gray-300">
-              <div 
+              <button 
                 onClick={() => scrollToSection('detail-section')}
-                className={`flex-1 text-center py-4 cursor-pointer border-r border-gray-300 hover:bg-blue-600 transition-colors
+                className={`flex-1 text-center py-4 cursor-pointer border-r border-gray-300 transition-colors
                   ${activeTab === 'detail-section' ? 'bg-blue-500 text-white' : 'text-gray-800 hover:bg-gray-100'}`}
               >
                 병원정보
-              </div>
-              <div 
+              </button>
+              <button 
                 onClick={() => scrollToSection('review-section')}
-                className={`flex-1 text-center py-4 cursor-pointer border-r border-gray-300 hover:bg-blue-600 transition-colors
+                className={`flex-1 text-center py-4 cursor-pointer border-r border-gray-300 transition-colors
                   ${activeTab === 'review-section' ? 'bg-blue-500 text-white' : 'text-gray-800 hover:bg-gray-100'}`}
               >
                 후기
-              </div>
-              <div 
+              </button>
+              <button 
                 onClick={() => scrollToSection('similar-section')}
-                className={`flex-1 text-center py-4 cursor-pointer hover:bg-blue-600 transition-colors
+                className={`flex-1 text-center py-4 cursor-pointer transition-colors
                   ${activeTab === 'similar-section' ? 'bg-blue-500 text-white' : 'text-gray-800 hover:bg-gray-100'}`}
               >
                 병원의 다른 시술
-              </div>
+              </button>
             </div>
           </div>
         </div>
@@ -928,8 +966,8 @@ export default function TreatmentDetailPage() {
         <div id="detail-section" className="bg-white rounded-2xl shadow-sm overflow-hidden scroll-mt-[112px]">
           <div className="flex flex-col md:flex-row">
             {/* 좌측 상세 설명 */}
-            <div className="md:w-2/3 relative">
-              <div className={`relative ${!showFullImage ? 'h-[800px]' : ''} overflow-hidden`}>
+            <div className="md:w-2/3">
+              <div className={`relative ${!showFullImage ? 'max-h-[800px]' : ''} overflow-hidden`}>
                 <div className="p-6">
                   <h2 className="text-lg font-bold mb-4">상세 설명</h2>
                   <div 
@@ -940,13 +978,13 @@ export default function TreatmentDetailPage() {
                   />
                 </div>
                 {!showFullImage && (
-                  <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-white to-transparent" />
+                  <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-white to-transparent pointer-events-none" />
                 )}
               </div>
               {!showFullImage && (
-                <div className="absolute bottom-4 left-0 right-0 flex justify-center">
+                <div className="p-6 pt-0 text-center">
                   <Button
-                    onClick={() => setShowFullImage(true)}
+                    onClick={handleShowMore}
                     variant="outline"
                     className="bg-white shadow-md"
                   >
@@ -1007,25 +1045,38 @@ export default function TreatmentDetailPage() {
         </div>
 
         {/* 리뷰 섹션 */}
-        <div id="review-section" className="bg-white rounded-2xl shadow-sm overflow-hidden p-6 scroll-mt-[112px]">
+        <div id="review-section" className="bg-white rounded-2xl shadow-sm overflow-hidden p-6">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold">실시간 후기</h2>
-            <Button variant="ghost" className="text-sm text-muted-foreground h-8 gap-1" asChild>
-              <Link href="/reviews">
-                전체보기
-                <ChevronRight className="h-4 w-4" />
-              </Link>
-            </Button>
+            <select 
+              className="h-9 px-3 text-sm border rounded-md bg-background"
+              value={reviewSortBy}
+              onChange={(e) => handleReviewSortChange(e.target.value)}
+            >
+              <option value="latest">최신순</option>
+              <option value="view_count">조회순</option>
+              <option value="like_count">좋아요순</option>
+            </select>
           </div>
-          <HorizontalScroll>
-            <div className="flex gap-4">
-              {recentReviews.map((review) => (
-                <div key={review.id} className="w-[85vw] md:w-[600px] flex-shrink-0 relative z-[1]">
-                  <ReviewCard {...review} />
-                </div>
-              ))}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {recentReviews.map((review) => (
+              <div key={review.id} className="relative z-[1]">
+                <ReviewCard {...review} />
+              </div>
+            ))}
+          </div>
+          {hasMoreReviews && (
+            <div className="mt-8 text-center">
+              <Button
+                variant="outline"
+                onClick={handleLoadMoreReviews}
+                disabled={loadingReviews}
+                className="w-full md:w-[200px]"
+              >
+                {loadingReviews ? '로딩중...' : '더보기'}
+              </Button>
             </div>
-          </HorizontalScroll>
+          )}
         </div>
 
         {/* 인기 시술 섹션 */}

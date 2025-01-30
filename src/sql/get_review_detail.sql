@@ -14,6 +14,12 @@ AS $$
 DECLARE
   result JSONB;
 BEGIN
+  -- 조회수 증가를 먼저 실행
+  UPDATE reviews 
+  SET view_count = view_count + 1 
+  WHERE id = p_review_id;
+
+  -- 기존 쿼리 실행
   WITH review_base AS (
     SELECT 
       r.id,
@@ -81,7 +87,7 @@ BEGIN
         jsonb_build_object(
           'id', ri.id,
           'url', ri.image_url,
-          'type', ri.image_type,
+          'type', ri.image_type,  -- 이미지 타입을 그대로 사용
           'order', ri.display_order
         ) ORDER BY ri.display_order
       ) as img_data

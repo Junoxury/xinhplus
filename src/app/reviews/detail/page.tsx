@@ -56,7 +56,7 @@ interface ReviewDetail {
   images: Array<{
     id: number
     url: string
-    type: 'before' | 'after'
+    type: 'before' | 'after' | 'google'
     order: number
   }>
   comments: Array<{
@@ -88,7 +88,6 @@ export default function ReviewPage() {
   const searchParams = useSearchParams()
   const [selectedImage, setSelectedImage] = useState<{src: string, alt: string} | null>(null)
   const [replyTo, setReplyTo] = useState<number | null>(null)
-  const [commentRating, setCommentRating] = useState(5)
   const [reviewData, setReviewData] = useState<ReviewDetail | null>(null)
   const [isLiked, setIsLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
@@ -241,7 +240,9 @@ export default function ReviewPage() {
         p_review_id: reviewData?.id,
         p_user_id: currentUserId,
         p_content: commentContent.trim(),
-        p_rating: commentRating || 5
+        p_parent_id: null,
+        p_hospital_id: reviewData?.hospital_id,
+        p_treatment_id: reviewData?.treatment_id
       });
 
       if (error) {
@@ -254,13 +255,11 @@ export default function ReviewPage() {
         setReviewData({
           ...reviewData,
           comments: [data, ...reviewData.comments],
-          rating: data.new_rating,
-          comment_count: reviewData.comment_count + 1  // 댓글 수 증가
+          comment_count: reviewData.comment_count + 1
         });
         
         // 입력 폼 초기화
         setCommentContent('');
-        setCommentRating(5);
         
         toast({
           description: "댓글이 작성되었습니다.",
@@ -285,7 +284,9 @@ export default function ReviewPage() {
       
       const { data, error } = await supabase.rpc('delete_review_comment', {
         p_comment_id: commentId,
-        p_user_id: currentUserId
+        p_user_id: currentUserId,
+        p_hospital_id: reviewData?.hospital_id,
+        p_treatment_id: reviewData?.treatment_id
       });
 
       if (error) throw error;
@@ -296,8 +297,7 @@ export default function ReviewPage() {
           setReviewData({
             ...reviewData,
             comments: reviewData.comments.filter(c => c.id !== commentId),
-            comment_count: reviewData.comment_count - 1,
-            rating: await getUpdatedRating()  // 평점 업데이트
+            comment_count: reviewData.comment_count - 1
           });
         } else {
           // 답글 삭제인 경우
@@ -309,8 +309,7 @@ export default function ReviewPage() {
           setReviewData({
             ...reviewData,
             comments: updatedComments,
-            comment_count: reviewData.comment_count - 1,
-            rating: await getUpdatedRating()  // 평점 업데이트
+            comment_count: reviewData.comment_count - 1
           });
         }
 
@@ -329,23 +328,6 @@ export default function ReviewPage() {
     }
   };
 
-  // 최신 평점 가져오기 함수
-  const getUpdatedRating = async () => {
-    try {
-      const { data, error } = await supabase
-        .rpc('get_review_detail', {
-          p_review_id: reviewData?.id,
-          p_user_id: currentUserId
-        });
-
-      if (error) throw error;
-      return data.rating;
-    } catch (error) {
-      console.error('평점 조회 실패:', error);
-      return reviewData?.rating || 0;
-    }
-  };
-
   // 답글 작성 처리
   const handleReplySubmit = async (parentCommentId: number) => {
     if (!isLoggedIn || !replyContent.trim()) return;
@@ -355,8 +337,9 @@ export default function ReviewPage() {
         p_review_id: reviewData?.id,
         p_user_id: currentUserId,
         p_content: replyContent.trim(),
-        p_rating: 0,
-        p_parent_id: parentCommentId
+        p_parent_id: parentCommentId,
+        p_hospital_id: reviewData?.hospital_id,
+        p_treatment_id: reviewData?.treatment_id
       });
 
       if (error) {
@@ -522,7 +505,7 @@ export default function ReviewPage() {
                 className="relative aspect-[4/3] cursor-pointer group"
                 onClick={() => setSelectedImage({ src: image.url, alt: `Review image ${index + 1}` })}
               >
-                {/* 이미지를 먼저 렌더링 */}
+                {/* 이미지 */}
                 <Image
                   src={image.url}
                   alt={`Review image ${index + 1}`}
@@ -532,14 +515,25 @@ export default function ReviewPage() {
                   }`}
                 />
 
-                {/* 오버레이들은 이미지 뒤에 렌더링 */}
+                {/* 오버레이 */}
                 <div className="absolute inset-0">
-                  {/* Before/After 라벨 */}
-                  <span className="absolute top-2 left-2 bg-black/50 text-white px-2 py-1 rounded-sm text-xs">
-                    {image.type === 'after' ? 'After' : 'Before'}
-                  </span>
+                  {/* Before/After 라벨 또는 Google 배지 */}
+                  {image.type === 'google' ? (
+                    <div className="absolute top-2 left-2">
+                      <Image
+                        src="https://www.google.com/images/poweredby_transparent/poweredby_000000.gif"
+                        alt="Powered by Google"
+                        width={40}
+                        height={40}
+                      />
+                    </div>
+                  ) : (
+                    <span className="absolute top-2 left-2 bg-black/50 text-white px-2 py-1 rounded-sm text-xs">
+                      {image.type === 'after' ? 'After' : 'Before'}
+                    </span>
+                  )}
 
-                  {/* 자물쇠 오버레이 (before 이미지이고 로그인하지 않았을 때만) */}
+                  {/* 자물쇠 오버레이 (before 이미지이며 로그인하지 않았을 때만) */}
                   {image.type === 'before' && !isLoggedIn && (
                     <div className="absolute inset-0 flex items-center justify-center">
                       <div className="flex flex-col items-center bg-black/60 px-4 py-3 rounded-lg backdrop-blur-sm">
@@ -577,24 +571,24 @@ export default function ReviewPage() {
                   />
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-lg font-bold mb-2">{reviewData.hospital_name}</h3>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
+                  <h3 className="text-lg font-bold mb-1">{reviewData.hospital_name}</h3>
+                  <div className="flex items-center gap-4 mb-2">
+                    <div className="flex items-center">
                       <Star className="w-4 h-4 text-yellow-400 fill-current" />
-                      <span className="font-semibold">{reviewData.hospital_rating}</span>
-                      <span className="text-sm text-gray-500">
-                        ({reviewData.hospital_review_count})
-                      </span>
+                      <span className="ml-1 text-sm">{reviewData.hospital_rating}</span>
                     </div>
-                    <div className="flex items-start gap-2">
-                      <MapPin className="w-4 h-4 text-gray-400 mt-1" />
-                      <p className="text-sm text-gray-600">{reviewData.hospital_address}</p>
+                    <div className="flex items-center">
+                      <MessageCircle className="w-4 h-4 text-gray-400" />
+                      <span className="ml-1 text-sm">{reviewData.hospital_review_count}</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Phone className="w-4 h-4 text-gray-400" />
-                      <p className="text-sm text-gray-600">{reviewData.hospital_phone}</p>
-                    </div>
-                    
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
+                    <MapPin className="w-4 h-4" />
+                    <span>{reviewData.hospital_address}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-gray-500">
+                    <Phone className="w-4 h-4" />
+                    <span>{reviewData.hospital_phone}</span>
                   </div>
                 </div>
               </div>
@@ -681,38 +675,6 @@ export default function ReviewPage() {
                 />
               </div>
               <div className="flex-1">
-                {/* 평점 입력 UI - 기본값 5로 설정 */}
-                <div className="flex items-center gap-2 mb-3" onClick={handleCommentClick}>
-                  <span className="text-sm text-gray-500">평점</span>
-                  <div className="flex gap-1">
-                    {[1, 2, 3, 4, 5].map((rating) => (
-                      <button
-                        key={rating}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (isLoggedIn) {
-                            setCommentRating(rating);
-                          } else {
-                            router.push('/login');
-                          }
-                        }}
-                        className="focus:outline-none"
-                      >
-                        <Star
-                          className={`w-5 h-5 ${
-                            rating <= commentRating
-                              ? 'text-yellow-400 fill-current'
-                              : 'text-gray-300'
-                          }`}
-                        />
-                      </button>
-                    ))}
-                  </div>
-                  <span className="text-sm text-gray-500">
-                    {commentRating}점
-                  </span>
-                </div>
-
                 <Textarea
                   placeholder="댓글을 입력하세요..."
                   className="min-h-[80px] mb-2"
@@ -779,10 +741,6 @@ export default function ReviewPage() {
                       </div>
                       <p className="text-gray-700 mb-2">{comment.content}</p>
                       <div className="flex items-center gap-4">
-                        <button className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1">
-                          <Star className="w-4 h-4" />
-                          <span>{comment.like_count}</span>
-                        </button>
                         <button 
                           className="text-sm text-gray-500 hover:text-gray-700"
                           onClick={() => setReplyTo(replyTo === comment.id ? null : comment.id)}

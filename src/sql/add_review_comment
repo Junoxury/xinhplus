@@ -3,21 +3,19 @@ CREATE OR REPLACE FUNCTION add_review_comment(
   p_review_id BIGINT,
   p_user_id UUID,
   p_content TEXT,
-  p_rating INTEGER,
-  p_parent_id BIGINT DEFAULT NULL
+  p_parent_id BIGINT DEFAULT NULL,
+  p_hospital_id BIGINT DEFAULT NULL,  -- 병원 ID 추가
+  p_treatment_id BIGINT DEFAULT NULL  -- 시술 ID 추가
 ) RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER AS $$
 DECLARE
   v_comment_id BIGINT;
-  v_avg_rating DECIMAL(2,1);
   v_new_comment JSONB;
 BEGIN
-  -- 댓글 추가 (like_count에 평점 저장, 답글인 경우 parent_id 설정)
+  -- 댓글 추가
   INSERT INTO review_comments (
-    review_id, author_id, content, like_count, parent_id
+    review_id, author_id, content, parent_id
   ) VALUES (
-    p_review_id, p_user_id, p_content, 
-    CASE WHEN p_parent_id IS NULL THEN p_rating ELSE 0 END,
-    p_parent_id
+    p_review_id, p_user_id, p_content, p_parent_id
   ) RETURNING id INTO v_comment_id;
 
   -- 리뷰의 댓글 수 증가
@@ -25,41 +23,29 @@ BEGIN
   SET comment_count = comment_count + 1
   WHERE id = p_review_id;
 
-  -- 평점 업데이트는 일반 댓글인 경우에만 수행
-  IF p_parent_id IS NULL THEN
-    -- 해당 리뷰의 모든 댓글 평점의 평균 계산
-    WITH comment_ratings AS (
-      SELECT 
-        review_id,
-        COUNT(*) as rating_count,
-        SUM(CAST(like_count AS DECIMAL)) as rating_sum
-      FROM review_comments
-      WHERE review_id = p_review_id
-      AND parent_id IS NULL  -- 답글은 제외하고 계산
-      GROUP BY review_id
-    )
-    SELECT 
-      ROUND(rating_sum / rating_count, 1)
-    INTO v_avg_rating
-    FROM comment_ratings;
-
-    -- 리뷰 평점 업데이트
-    UPDATE reviews
-    SET rating = v_avg_rating
-    WHERE id = p_review_id;
+  -- 병원의 댓글 수 증가
+  IF p_hospital_id IS NOT NULL THEN
+    UPDATE hospitals
+    SET comment_count = comment_count + 1
+    WHERE id = p_hospital_id;
   END IF;
 
-  -- 새로 작성된 댓글 정보와 업데이트된 평점 반환
+  -- 시술의 댓글 수 증가
+  IF p_treatment_id IS NOT NULL THEN
+    UPDATE treatments
+    SET comment_count = comment_count + 1
+    WHERE id = p_treatment_id;
+  END IF;
+
+  -- 새로 작성된 댓글 정보 반환
   SELECT jsonb_build_object(
     'id', rc.id,
     'content', rc.content,
     'author_id', rc.author_id,
     'author_name', (u.raw_user_meta_data->>'full_name'),
     'author_image', (u.raw_user_meta_data->>'avatar_url'),
-    'like_count', rc.like_count,
     'created_at', rc.created_at,
-    'parent_id', rc.parent_id,
-    'new_rating', CASE WHEN p_parent_id IS NULL THEN v_avg_rating ELSE NULL END
+    'parent_id', rc.parent_id
   )
   INTO v_new_comment
   FROM review_comments rc
@@ -73,11 +59,12 @@ $$;
 -- 댓글 삭제 함수
 CREATE OR REPLACE FUNCTION delete_review_comment(
   p_comment_id BIGINT,
-  p_user_id UUID
+  p_user_id UUID,
+  p_hospital_id BIGINT DEFAULT NULL,  -- 병원 ID 추가
+  p_treatment_id BIGINT DEFAULT NULL  -- 시술 ID 추가
 ) RETURNS BOOLEAN LANGUAGE plpgsql SECURITY DEFINER AS $$
 DECLARE
   v_review_id BIGINT;
-  v_avg_rating DECIMAL(2,1);
 BEGIN
   -- 삭제할 댓글의 review_id 저장
   SELECT review_id INTO v_review_id
@@ -94,26 +81,19 @@ BEGIN
     SET comment_count = comment_count - 1
     WHERE id = v_review_id;
 
-    -- 평균 평점 재계산
-    WITH comment_ratings AS (
-      SELECT 
-        review_id,
-        COUNT(*) as rating_count,
-        SUM(CAST(like_count AS DECIMAL)) as rating_sum
-      FROM review_comments
-      WHERE review_id = v_review_id
-      AND parent_id IS NULL  -- 답글은 제외하고 계산
-      GROUP BY review_id
-    )
-    SELECT 
-      ROUND(rating_sum / rating_count, 1)
-    INTO v_avg_rating
-    FROM comment_ratings;
+    -- 병원의 댓글 수 감소
+    IF p_hospital_id IS NOT NULL THEN
+      UPDATE hospitals
+      SET comment_count = comment_count - 1
+      WHERE id = p_hospital_id;
+    END IF;
 
-    -- 리뷰 평점 업데이트
-    UPDATE reviews
-    SET rating = COALESCE(v_avg_rating, 0)  -- 모든 댓글이 삭제된 경우 0으로 설정
-    WHERE id = v_review_id;
+    -- 시술의 댓글 수 감소
+    IF p_treatment_id IS NOT NULL THEN
+      UPDATE treatments
+      SET comment_count = comment_count - 1
+      WHERE id = p_treatment_id;
+    END IF;
     
     RETURN TRUE;
   END IF;
