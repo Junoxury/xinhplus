@@ -7,6 +7,7 @@ CREATE TABLE reviews (
   rating DECIMAL(2,1) NOT NULL CHECK (rating >= 0 AND rating <= 5),
   view_count INTEGER DEFAULT 0,
   like_count INTEGER DEFAULT 0,
+  comment_count INTEGER DEFAULT 0,  -- 댓글 수 컬럼 추가
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   
@@ -88,4 +89,21 @@ CREATE INDEX idx_review_comments_created_at ON review_comments(created_at DESC);
 CREATE INDEX idx_review_comments_parent_id ON review_comments(parent_id);
 CREATE INDEX idx_review_comments_review_id ON review_comments(review_id);
 CREATE INDEX idx_review_images_review_id ON review_images(review_id);
+
+
+-- review_likes 테이블에 대한 RLS 활성화
+ALTER TABLE review_likes ENABLE ROW LEVEL SECURITY;
+
+-- 인증된 사용자는 좋아요를 추가/삭제할 수 있는 정책
+CREATE POLICY "인증된 사용자는 좋아요 가능" ON review_likes
+  FOR ALL
+  TO authenticated
+  USING (true)
+  WITH CHECK (true);
+
+-- 모든 사용자가 좋아요 조회 가능한 정책
+CREATE POLICY "모든 사용자가 좋아요 조회 가능" ON review_likes
+  FOR SELECT
+  TO public
+  USING (true);
 

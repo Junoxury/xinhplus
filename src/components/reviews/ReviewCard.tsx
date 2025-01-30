@@ -32,6 +32,7 @@ interface ReviewCardProps {
   likeCount: number
   layout?: string
   is_locked?: boolean
+  initialIsAuthenticated?: boolean
 }
 
 export function ReviewCard({
@@ -54,12 +55,16 @@ export function ReviewCard({
   isGoogle = false,
   likeCount = 0,
   layout = "grid",
-  is_locked = true
+  is_locked = true,
+  initialIsAuthenticated = false
 }: ReviewCardProps) {
   const router = useRouter()
-  const [isAuthenticatedState, setIsAuthenticatedState] = useState(false)
+  const [isAuthenticatedState, setIsAuthenticatedState] = useState(initialIsAuthenticated)
 
   useEffect(() => {
+    // 초기에 이미 인증된 상태라면 체크하지 않음
+    if (initialIsAuthenticated) return
+
     // 로그인 상태 확인
     const checkAuth = async () => {
       const { data: { user } } = await supabase.auth.getUser()
@@ -76,7 +81,7 @@ export function ReviewCard({
     return () => {
       subscription.unsubscribe()
     }
-  }, [])
+  }, [initialIsAuthenticated])
 
   const handleBeforeImageClick = (e: React.MouseEvent) => {
     if (!isAuthenticatedState) {

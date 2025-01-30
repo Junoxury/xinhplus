@@ -157,6 +157,26 @@ export default function ReviewPage() {
     setReviews([]);
   };
 
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+
+  // 인증 상태 확인을 위한 useEffect 추가 - 다른 useEffect보다 먼저 실행되도록 위치
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      setIsAuthenticated(!!user)
+    }
+    checkAuth()
+
+    // 인증 상태 변경 감지
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsAuthenticated(!!session?.user)
+    })
+
+    return () => {
+      subscription.unsubscribe()
+    }
+  }, [])
+
   // 리뷰 데이터 로드
   useEffect(() => {
     const fetchReviews = async () => {
@@ -349,7 +369,11 @@ export default function ReviewPage() {
             </div>
 
             {/* 리뷰 목록 */}
-            <ReviewList reviews={reviews} layout="grid" />
+            <ReviewList 
+              reviews={reviews} 
+              layout="grid" 
+              initialIsAuthenticated={isAuthenticated}
+            />
 
             {/* 더보기 버튼 */}
             {hasMore && (
@@ -398,7 +422,11 @@ export default function ReviewPage() {
           </div>
 
           {/* 리뷰 목록 */}
-          <ReviewList reviews={reviews} layout="vertical" />
+          <ReviewList 
+            reviews={reviews} 
+            layout="vertical" 
+            initialIsAuthenticated={isAuthenticated}
+          />
 
           {/* 더보기 버튼 */}
           {hasMore && (

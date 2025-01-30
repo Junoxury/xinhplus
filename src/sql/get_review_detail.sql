@@ -1,58 +1,19 @@
 -- 기존 함수 삭제
 DROP FUNCTION IF EXISTS get_review_detail(BIGINT);
+DROP FUNCTION IF EXISTS get_review_detail(BIGINT, UUID);
 
--- 새 함수 생성
-CREATE OR REPLACE FUNCTION get_review_detail(p_review_id BIGINT)
-RETURNS TABLE (
-  -- 리뷰 기본 정보
-  id BIGINT,
-  title VARCHAR(255),
-  content TEXT,
-  rating DECIMAL(2,1),
-  view_count INTEGER,
-  like_count INTEGER,
-  comment_count BIGINT,
-  created_at TIMESTAMPTZ,
-  is_best BOOLEAN,
-  is_google BOOLEAN,
-  
-  -- 작성자 정보
-  author_id UUID,
-  author_name VARCHAR(255),
-  author_image VARCHAR(255),
-  
-  -- 병원 정보
-  hospital_id BIGINT,
-  hospital_name VARCHAR(200),
-  hospital_address TEXT,
-  hospital_phone VARCHAR(50),
-  hospital_rating DECIMAL(2,1),
-  hospital_review_count BIGINT,
-  hospital_image VARCHAR(200),
-  
-  -- 시술 정보
-  treatment_id BIGINT,
-  treatment_name VARCHAR(255),
-  treatment_price NUMERIC(12,2),
-  treatment_discount_rate INTEGER,
-  treatment_discount_price NUMERIC(12,2),
-  treatment_rating DECIMAL(2,1),
-  treatment_summary TEXT,
-  
-  -- 카테고리 정보
-  categories JSONB,
-  
-  -- 이미지 정보
-  images JSONB,
-  
-  -- 댓글 정보
-  comments JSONB
-) 
+-- 새 함수 생성 (p_user_id 파라미터 추가)
+CREATE OR REPLACE FUNCTION get_review_detail(
+  p_review_id BIGINT,
+  p_user_id UUID DEFAULT NULL
+)
+RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
+DECLARE
+  result JSONB;
 BEGIN
-  RETURN QUERY
   WITH review_base AS (
     SELECT 
       r.id,
@@ -61,7 +22,7 @@ BEGIN
       r.rating,
       r.view_count,
       r.like_count,
-      h.comment_count,
+      r.comment_count,
       r.created_at,
       r.is_best,
       r.is_google,
@@ -81,7 +42,15 @@ BEGIN
       t.discount_rate as treatment_discount_rate,
       t.discount_price as treatment_discount_price,
       t.rating as treatment_rating,
-      t.summary as treatment_summary
+      t.summary as treatment_summary,
+      -- 좋아요 상태 확인 추가
+      CASE 
+        WHEN p_user_id IS NULL THEN FALSE
+        ELSE EXISTS (
+          SELECT 1 FROM review_likes rl 
+          WHERE rl.review_id = r.id AND rl.user_id = p_user_id
+        )
+      END as is_liked
     FROM reviews r
     LEFT JOIN auth.users u ON r.author_id = u.id
     LEFT JOIN hospitals h ON r.hospital_id = h.id
@@ -140,24 +109,53 @@ BEGIN
                 'author_image', (u2.raw_user_meta_data->>'avatar_url')::VARCHAR,
                 'like_count', rc2.like_count,
                 'created_at', rc2.created_at
-              ) ORDER BY rc2.created_at
+              ) ORDER BY rc2.created_at ASC
             )
             FROM review_comments rc2
             LEFT JOIN auth.users u2 ON rc2.author_id = u2.id
             WHERE rc2.parent_id = rc.id
           )
-        ) ORDER BY rc.created_at
+        ) ORDER BY rc.created_at DESC
       ) as cmt_data
     FROM review_comments rc
     LEFT JOIN auth.users u ON rc.author_id = u.id
     WHERE rc.review_id = p_review_id
     AND rc.parent_id IS NULL
   )
-  SELECT
-    rb.*,
-    COALESCE(rc.cat_data, '{}'::jsonb) as categories,
-    COALESCE(ri.img_data, '[]'::jsonb) as images,
-    COALESCE(rco.cmt_data, '[]'::jsonb) as comments
+  SELECT 
+    jsonb_build_object(
+      'id', rb.id,
+      'title', rb.title,
+      'content', rb.content,
+      'rating', rb.rating,
+      'view_count', rb.view_count,
+      'like_count', rb.like_count,
+      'comment_count', rb.comment_count,
+      'created_at', rb.created_at,
+      'is_best', rb.is_best,
+      'is_google', rb.is_google,
+      'author_id', rb.author_id,
+      'author_name', rb.author_name,
+      'author_image', rb.author_image,
+      'hospital_id', rb.hospital_id,
+      'hospital_name', rb.hospital_name,
+      'hospital_address', rb.hospital_address,
+      'hospital_phone', rb.hospital_phone,
+      'hospital_rating', rb.hospital_rating,
+      'hospital_review_count', rb.hospital_review_count,
+      'hospital_image', rb.hospital_image,
+      'treatment_id', rb.treatment_id,
+      'treatment_name', rb.treatment_name,
+      'treatment_price', rb.treatment_price,
+      'treatment_discount_rate', rb.treatment_discount_rate,
+      'treatment_discount_price', rb.treatment_discount_price,
+      'treatment_rating', rb.treatment_rating,
+      'treatment_summary', rb.treatment_summary,
+      'categories', COALESCE(rc.cat_data, '{}'::jsonb),
+      'images', COALESCE(ri.img_data, '[]'::jsonb),
+      'comments', COALESCE(rco.cmt_data, '[]'::jsonb),
+      'is_liked', rb.is_liked
+    ) INTO result
   FROM review_base rb
   LEFT JOIN LATERAL (
     SELECT cat_data FROM review_categories rc2 WHERE rc2.treatment_id = rb.treatment_id LIMIT 1
@@ -168,5 +166,7 @@ BEGIN
   LEFT JOIN LATERAL (
     SELECT cmt_data FROM review_comments rc3 LIMIT 1
   ) rco ON true;
+
+  RETURN result;
 END;
 $$; 

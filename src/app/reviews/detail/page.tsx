@@ -1,7 +1,7 @@
 'use client'
 
 import { TreatmentBanner } from '@/components/treatments/TreatmentBanner'
-import { ChevronLeft, Star, MessageCircle, Eye, MapPin, Clock, Phone, X, Heart, Share2, Lock } from 'lucide-react'
+import { ChevronLeft, Star, MessageCircle, Eye, MapPin, Clock, Phone, X, Heart, Share2, Lock, Trash2 } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import { Card } from '@/components/ui/card'
@@ -9,6 +9,18 @@ import { useState, useEffect } from 'react'
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { supabase } from '@/lib/supabase'
+import { useToast } from "@/hooks/use-toast"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 interface ReviewDetail {
   id: number
@@ -65,6 +77,7 @@ interface ReviewDetail {
       created_at: string
     }>
   }>
+  is_liked?: boolean;
 }
 
 // 상수 추가
@@ -75,8 +88,15 @@ export default function ReviewPage() {
   const searchParams = useSearchParams()
   const [selectedImage, setSelectedImage] = useState<{src: string, alt: string} | null>(null)
   const [replyTo, setReplyTo] = useState<number | null>(null)
-  const [commentRating, setCommentRating] = useState(0)
+  const [commentRating, setCommentRating] = useState(5)
   const [reviewData, setReviewData] = useState<ReviewDetail | null>(null)
+  const [isLiked, setIsLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(0);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [commentContent, setCommentContent] = useState('');
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [replyContent, setReplyContent] = useState('');
+  const { toast } = useToast()
 
   useEffect(() => {
     const fetchReviewDetail = async () => {
@@ -84,14 +104,20 @@ export default function ReviewPage() {
       if (!reviewId) return
 
       try {
+        // 현재 세션 가져오기
+        const { data: { session } } = await supabase.auth.getSession()
+        
         const { data, error } = await supabase
           .rpc('get_review_detail', {
-            p_review_id: parseInt(reviewId)
+            p_review_id: parseInt(reviewId),
+            p_user_id: session?.user?.id || null
           })
 
         if (error) throw error
-        if (data && data[0]) {
-          setReviewData(data[0])
+        
+        // data가 이제 직접 객체로 반환됨 (배열이 아님)
+        if (data) {
+          setReviewData(data)
         }
       } catch (error) {
         console.error('리뷰 상세 정보 조회 실패:', error)
@@ -100,6 +126,281 @@ export default function ReviewPage() {
 
     fetchReviewDetail()
   }, [searchParams])
+
+  // 좋아요 상태 초기화
+  useEffect(() => {
+    if (reviewData) {
+      setIsLiked(reviewData.is_liked || false);
+      setLikeCount(reviewData.like_count);
+    }
+  }, [reviewData]);
+
+  // 로그인 상태 체크 추가
+  useEffect(() => {
+    const checkLoginStatus = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setIsLoggedIn(!!session);
+      setCurrentUserId(session?.user?.id || null);
+    };
+
+    checkLoginStatus();
+  }, []);
+
+  // JWT 만료 체크 함수
+  const checkJWTExpired = (error: any) => {
+    if (error.code === 'PGRST301' || error.message === 'JWT expired') {
+      // 로그인 상태 초기화
+      setIsLoggedIn(false);
+      setCurrentUserId(null);
+      // 로그인 페이지로 리다이렉트
+      router.push('/login');
+      return true;
+    }
+    return false;
+  };
+
+  // 좋아요 처리 함수
+  const handleLike = async () => {
+    const session = await supabase.auth.getSession();
+    
+    if (!session.data.session) {
+      router.push('/login');
+      return;
+    }
+
+    try {
+      const { data: likeData, error } = await supabase.rpc('toggle_review_like', {
+        p_review_id: parseInt(searchParams.get('id')!),
+        p_user_id: session.data.session.user.id
+      });
+
+      if (error) {
+        if (checkJWTExpired(error)) return;
+        throw error;
+      }
+
+      // 결과값 확인을 위한 로그
+      console.log('Toggle result:', likeData);
+
+      // 좋아요 상태 및 카운트 업데이트
+      if (likeData && Array.isArray(likeData) && likeData[0]) {
+        const result = likeData[0];
+        setIsLiked(result.is_liked);
+        setLikeCount(result.like_count);
+        
+        // reviewData 업데이트
+        setReviewData(prev => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            like_count: result.like_count,
+            is_liked: result.is_liked
+          };
+        });
+      }
+
+    } catch (error) {
+      console.error('좋아요 처리 실패:', error);
+    }
+  };
+
+  // 공유하기 처리 함수
+  const handleShare = async () => {
+    try {
+      const currentUrl = window.location.href;
+      await navigator.clipboard.writeText(currentUrl);
+      
+      toast({
+        description: "링크가 클립보드에 복사되었습니다.",
+        duration: 2000, // 2초 후 자동으로 사라짐
+      });
+    } catch (error) {
+      console.error('클립보드 복사 실패:', error);
+      toast({
+        variant: "destructive",
+        description: "링크 복사에 실패했습니다.",
+        duration: 2000,
+      });
+    }
+  };
+
+  // 댓글 작성 시도 시 로그인 체크
+  const handleCommentClick = () => {
+    if (!isLoggedIn) {
+      router.push('/login');
+      return;
+    }
+  };
+
+  // 댓글 작성 처리
+  const handleCommentSubmit = async () => {
+    if (!isLoggedIn || !commentContent.trim()) return;
+
+    try {
+      const { data, error } = await supabase.rpc('add_review_comment', {
+        p_review_id: reviewData?.id,
+        p_user_id: currentUserId,
+        p_content: commentContent.trim(),
+        p_rating: commentRating || 5
+      });
+
+      if (error) {
+        if (checkJWTExpired(error)) return;
+        throw error;
+      }
+
+      // 댓글 목록 업데이트 - 새 댓글을 맨 앞에 추가
+      if (data && reviewData) {
+        setReviewData({
+          ...reviewData,
+          comments: [data, ...reviewData.comments],
+          rating: data.new_rating,
+          comment_count: reviewData.comment_count + 1  // 댓글 수 증가
+        });
+        
+        // 입력 폼 초기화
+        setCommentContent('');
+        setCommentRating(5);
+        
+        toast({
+          description: "댓글이 작성되었습니다.",
+          duration: 2000,
+        });
+      }
+    } catch (error) {
+      console.error('댓글 작성 실패:', error);
+      toast({
+        variant: "destructive",
+        description: "댓글 작성에 실패했습니다.",
+        duration: 2000,
+      });
+    }
+  };
+
+  // 댓글 삭제 처리
+  const handleCommentDelete = async (commentId: number) => {
+    try {
+      // 삭제할 댓글이 메인 댓글인지 확인
+      const isMainComment = reviewData?.comments.some(c => c.id === commentId);
+      
+      const { data, error } = await supabase.rpc('delete_review_comment', {
+        p_comment_id: commentId,
+        p_user_id: currentUserId
+      });
+
+      if (error) throw error;
+
+      if (data && reviewData) {
+        // 메인 댓글 삭제인 경우
+        if (isMainComment) {
+          setReviewData({
+            ...reviewData,
+            comments: reviewData.comments.filter(c => c.id !== commentId),
+            comment_count: reviewData.comment_count - 1,
+            rating: await getUpdatedRating()  // 평점 업데이트
+          });
+        } else {
+          // 답글 삭제인 경우
+          const updatedComments = reviewData.comments.map(comment => ({
+            ...comment,
+            replies: comment.replies?.filter(r => r.id !== commentId)
+          }));
+
+          setReviewData({
+            ...reviewData,
+            comments: updatedComments,
+            comment_count: reviewData.comment_count - 1,
+            rating: await getUpdatedRating()  // 평점 업데이트
+          });
+        }
+
+        toast({
+          description: "댓글이 삭제되었습니다.",
+          duration: 2000,
+        });
+      }
+    } catch (error) {
+      console.error('댓글 삭제 실패:', error);
+      toast({
+        variant: "destructive",
+        description: "댓글 삭제에 실패했습니다.",
+        duration: 2000,
+      });
+    }
+  };
+
+  // 최신 평점 가져오기 함수
+  const getUpdatedRating = async () => {
+    try {
+      const { data, error } = await supabase
+        .rpc('get_review_detail', {
+          p_review_id: reviewData?.id,
+          p_user_id: currentUserId
+        });
+
+      if (error) throw error;
+      return data.rating;
+    } catch (error) {
+      console.error('평점 조회 실패:', error);
+      return reviewData?.rating || 0;
+    }
+  };
+
+  // 답글 작성 처리
+  const handleReplySubmit = async (parentCommentId: number) => {
+    if (!isLoggedIn || !replyContent.trim()) return;
+
+    try {
+      const { data, error } = await supabase.rpc('add_review_comment', {
+        p_review_id: reviewData?.id,
+        p_user_id: currentUserId,
+        p_content: replyContent.trim(),
+        p_rating: 0,
+        p_parent_id: parentCommentId
+      });
+
+      if (error) {
+        if (checkJWTExpired(error)) return;
+        throw error;
+      }
+
+      // 댓글 목록 업데이트
+      if (data && reviewData) {
+        const updatedComments = reviewData.comments.map(comment => {
+          if (comment.id === parentCommentId) {
+            return {
+              ...comment,
+              // 답글은 오래된 순서대로 표시 (맨 뒤에 추가)
+              replies: [...(comment.replies || []), data]
+            };
+          }
+          return comment;
+        });
+
+        setReviewData({
+          ...reviewData,
+          comments: updatedComments,
+          comment_count: reviewData.comment_count + 1  // 답글도 댓글 수에 포함
+        });
+        
+        // 입력 폼 초기화
+        setReplyContent('');
+        setReplyTo(null);
+        
+        toast({
+          description: "답글이 작성되었습니다.",
+          duration: 2000,
+        });
+      }
+    } catch (error) {
+      console.error('답글 작성 실패:', error);
+      toast({
+        variant: "destructive",
+        description: "답글 작성에 실패했습니다.",
+        duration: 2000,
+      });
+    }
+  };
 
   if (!reviewData) return null
 
@@ -133,13 +434,25 @@ export default function ReviewPage() {
         <div className="bg-white rounded-lg shadow-sm p-6">
           {/* 공유하기와 좋아요 버튼 추가 */}
           <div className="flex justify-end gap-2 mb-4">
-            <Button variant="ghost" size="sm">
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={handleShare}
+            >
               <Share2 className="w-5 h-5 mr-1" />
               공유하기
             </Button>
-            <Button variant="ghost" size="sm">
-              <Heart className="w-5 h-5 mr-1" />
-              좋아요
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={handleLike}
+            >
+              <Heart 
+                className={`w-5 h-5 mr-1 ${
+                  isLiked ? 'fill-current text-red-500' : ''
+                }`} 
+              />
+              
             </Button>
           </div>
 
@@ -179,9 +492,14 @@ export default function ReviewPage() {
                 <Eye className="w-5 h-5 text-gray-400" />
                 <span className="ml-1 text-gray-600">{reviewData.view_count}</span>
               </div>
-              <div className="flex items-center">
-                <Heart className="w-5 h-5 text-gray-400" />
-                <span className="ml-1 text-gray-600">{reviewData.like_count}</span>
+              <div 
+                className="flex items-center cursor-pointer"
+                onClick={handleLike}
+              >
+                <Heart 
+                  className={`w-5 h-5 ${isLiked ? 'text-red-500 fill-current' : 'text-gray-400'}`} 
+                />
+                <span className="ml-1 text-gray-600">{likeCount}</span>
               </div>
             </div>
             <div className="flex items-center text-sm text-gray-500">
@@ -210,7 +528,7 @@ export default function ReviewPage() {
                   alt={`Review image ${index + 1}`}
                   fill
                   className={`object-cover rounded-lg ${
-                    image.type === 'before' ? 'brightness-[0.2] blur-[1.5px]' : ''
+                    image.type === 'before' && !isLoggedIn ? 'brightness-[0.2] blur-[1.5px]' : ''
                   }`}
                 />
 
@@ -221,8 +539,8 @@ export default function ReviewPage() {
                     {image.type === 'after' ? 'After' : 'Before'}
                   </span>
 
-                  {/* 자물쇠 오버레이 (before 이미지일 때) */}
-                  {image.type === 'before' && (
+                  {/* 자물쇠 오버레이 (before 이미지이고 로그인하지 않았을 때만) */}
+                  {image.type === 'before' && !isLoggedIn && (
                     <div className="absolute inset-0 flex items-center justify-center">
                       <div className="flex flex-col items-center bg-black/60 px-4 py-3 rounded-lg backdrop-blur-sm">
                         <Lock className="w-5 h-5 text-white" />
@@ -348,7 +666,9 @@ export default function ReviewPage() {
 
           {/* 댓글 섹션 */}
           <div className="mt-8">
-            <h3 className="text-lg font-bold mb-4">댓글 {reviewData.comments.length}개</h3>
+            <h3 className="text-lg font-bold mb-4">
+              댓글 {reviewData.comment_count}개
+            </h3>
             
             {/* 댓글 작성 폼 */}
             <div className="flex gap-4 mb-6">
@@ -361,14 +681,21 @@ export default function ReviewPage() {
                 />
               </div>
               <div className="flex-1">
-                {/* 평점 입력 UI */}
-                <div className="flex items-center gap-2 mb-3">
+                {/* 평점 입력 UI - 기본값 5로 설정 */}
+                <div className="flex items-center gap-2 mb-3" onClick={handleCommentClick}>
                   <span className="text-sm text-gray-500">평점</span>
                   <div className="flex gap-1">
                     {[1, 2, 3, 4, 5].map((rating) => (
                       <button
                         key={rating}
-                        onClick={() => setCommentRating(rating)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (isLoggedIn) {
+                            setCommentRating(rating);
+                          } else {
+                            router.push('/login');
+                          }
+                        }}
                         className="focus:outline-none"
                       >
                         <Star
@@ -381,19 +708,20 @@ export default function ReviewPage() {
                       </button>
                     ))}
                   </div>
-                  {commentRating > 0 && (
-                    <span className="text-sm text-gray-500">
-                      {commentRating.toFixed(1)}점
-                    </span>
-                  )}
+                  <span className="text-sm text-gray-500">
+                    {commentRating}점
+                  </span>
                 </div>
 
                 <Textarea
                   placeholder="댓글을 입력하세요..."
                   className="min-h-[80px] mb-2"
+                  onClick={handleCommentClick}
+                  value={commentContent}
+                  onChange={(e) => setCommentContent(e.target.value)}
                 />
                 <div className="flex justify-end">
-                  <Button>댓글 작성</Button>
+                  <Button onClick={handleCommentSubmit}>댓글 작성</Button>
                 </div>
               </div>
             </div>
@@ -412,9 +740,42 @@ export default function ReviewPage() {
                       />
                     </div>
                     <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-semibold">{comment.author_name}</span>
-                        <span className="text-sm text-gray-500">{new Date(comment.created_at).toLocaleDateString()}</span>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-semibold">{comment.author_name}</span>
+                          <span className="text-sm text-gray-500">
+                            {new Date(comment.created_at).toLocaleDateString()}
+                          </span>
+                        </div>
+                        {currentUserId === comment.author_id && (
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                              >
+                                <Trash2 className="w-4 h-4 text-gray-400 hover:text-red-500" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>댓글 삭제</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  이 댓글을 삭제하시겠습니까?
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>취소</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleCommentDelete(comment.id)}
+                                  className="bg-red-500 hover:bg-red-600"
+                                >
+                                  삭제
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        )}
                       </div>
                       <p className="text-gray-700 mb-2">{comment.content}</p>
                       <div className="flex items-center gap-4">
@@ -429,78 +790,105 @@ export default function ReviewPage() {
                           답글 달기
                         </button>
                       </div>
+
+                      {/* 답글 작성 폼 */}
+                      {replyTo === comment.id && (
+                        <div className="mt-4 pl-4 border-l-2 border-gray-200">
+                          <div className="flex gap-4">
+                            <div className="w-8 h-8 relative flex-shrink-0">
+                              <Image
+                                src={reviewData.author_image || '/images/default-avatar.png'}
+                                alt="프로필"
+                                fill
+                                className="rounded-full object-cover"
+                              />
+                            </div>
+                            <div className="flex-1">
+                              <Textarea
+                                placeholder="답글을 입력하세요..."
+                                className="min-h-[80px] mb-2"
+                                value={replyContent}
+                                onChange={(e) => setReplyContent(e.target.value)}
+                                onClick={handleCommentClick}
+                              />
+                              <div className="flex justify-end gap-2">
+                                <Button 
+                                  variant="outline" 
+                                  onClick={() => {
+                                    setReplyTo(null);
+                                    setReplyContent('');
+                                  }}
+                                >
+                                  취소
+                                </Button>
+                                <Button onClick={() => handleReplySubmit(comment.id)}>
+                                  답글 작성
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 답글 목록 */}
+                      {comment.replies?.length > 0 && (
+                        <div className="mt-4 pl-8 space-y-4">
+                          {comment.replies.map((reply) => (
+                            <div key={reply.id} className="flex gap-4">
+                              <div className="w-8 h-8 relative flex-shrink-0">
+                                <Image
+                                  src={reply.author_image || '/images/default-avatar.png'}
+                                  alt={`${reply.author_name} 프로필`}
+                                  fill
+                                  className="rounded-full object-cover"
+                                />
+                              </div>
+                              <div className="flex-1">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <span className="font-semibold">{reply.author_name}</span>
+                                    <span className="text-sm text-gray-500">
+                                      {new Date(reply.created_at).toLocaleDateString()}
+                                    </span>
+                                  </div>
+                                  {currentUserId === reply.author_id && (
+                                    <AlertDialog>
+                                      <AlertDialogTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                        >
+                                          <Trash2 className="w-4 h-4 text-gray-400 hover:text-red-500" />
+                                        </Button>
+                                      </AlertDialogTrigger>
+                                      <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                          <AlertDialogTitle>답글 삭제</AlertDialogTitle>
+                                          <AlertDialogDescription>
+                                            이 답글을 삭제하시겠습니까?
+                                          </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                          <AlertDialogCancel>취소</AlertDialogCancel>
+                                          <AlertDialogAction
+                                            onClick={() => handleCommentDelete(reply.id)}
+                                            className="bg-red-500 hover:bg-red-600"
+                                          >
+                                            삭제
+                                          </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                      </AlertDialogContent>
+                                    </AlertDialog>
+                                  )}
+                                </div>
+                                <p className="text-gray-700">{reply.content}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
-
-                  {/* 답글 목록 */}
-                  {comment.replies?.length > 0 && (
-                    <div className="pl-[52px] space-y-4">
-                      {comment.replies.map((reply) => (
-                        <div key={reply.id} className="flex gap-4">
-                          <div className="w-9 h-9 relative flex-shrink-0">
-                            <Image
-                              src={reply.author_image || '/images/default-avatar.png'}
-                              alt={`${reply.author_name} 프로필`}
-                              fill
-                              className="rounded-full object-cover"
-                            />
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="font-semibold">{reply.author_name}</span>
-                              <span className="text-sm text-gray-500">{new Date(reply.created_at).toLocaleDateString()}</span>
-                            </div>
-                            <p className="text-gray-700 mb-2">{reply.content}</p>
-                            <div className="flex items-center gap-4">
-                              <button className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1">
-                                <Star className="w-4 h-4" />
-                                <span>{reply.like_count}</span>
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* 답글 입력 폼 */}
-                  {replyTo === comment.id && (
-                    <div className="flex gap-4 pl-[52px]">
-                      <div className="w-9 h-9 relative flex-shrink-0">
-                        <Image
-                          src={reviewData.author_image || '/images/default-avatar.png'}
-                          alt={`${reviewData.author_name} 프로필`}
-                          fill
-                          className="rounded-full object-cover"
-                        />
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="text-sm text-gray-500">
-                            <span className="font-semibold text-gray-700">{comment.author_name}</span>
-                            님에게 답글 작성
-                          </span>
-                        </div>
-                        <input
-                          type="text"
-                          placeholder="답글을 입력하세요..."
-                          className="w-full px-3 py-2 border rounded-md text-sm mb-2"
-                        />
-                        <div className="flex justify-end gap-2">
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => setReplyTo(null)}
-                          >
-                            취소
-                          </Button>
-                          <Button size="sm">
-                            답글 작성
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
                 </div>
               ))}
             </div>

@@ -345,6 +345,7 @@ export default function HomePage() {
   const [localPopularTreatments, setLocalPopularTreatments] = useState<Record<number, any[]>>({})
   const [recommendedClinics, setRecommendedClinics] = useState<Hospital[]>([])
   const [latestReviews, setLatestReviews] = useState<Review[]>([])
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
 
   // 카테고리 데이터 로드
   useEffect(() => {
@@ -646,6 +647,15 @@ export default function HomePage() {
     fetchLatestReviews();
   }, []);
 
+  // 인증 상태 확인을 위한 useEffect 추가
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      setIsAuthenticated(!!user)
+    }
+    checkAuth()
+  }, [])
+
   return (
     <main className="min-h-screen">
       <Banner />
@@ -941,7 +951,10 @@ export default function HomePage() {
               <div className="flex gap-4">
                 {latestReviews.map((review) => (
                   <div key={review.id} className="w-[85vw] md:w-[600px] flex-shrink-0">
-                    <ReviewCard {...review} />
+                    <ReviewCard 
+                      {...review} 
+                      initialIsAuthenticated={isAuthenticated}  // 초기 인증 상태 전달
+                    />
                   </div>
                 ))}
               </div>
