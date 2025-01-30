@@ -1168,11 +1168,12 @@ export default function TreatmentDetailPage() {
             >
               리뷰쓰기
             </Link>
-            <button 
+            <Link 
+              href={`/treatments/consult?treatment_id=${treatment?.id}`}
               className="flex-1 px-4 py-3 bg-blue-500 text-white rounded-lg text-center font-medium hover:bg-blue-600 transition-colors text-sm md:text-base"
             >
               상담신청
-            </button>
+            </Link>
           </div>
         </div>
       </main>
