@@ -340,6 +340,9 @@ export default function TreatmentDetailPage() {
   // 인증 상태 추가
   const [isAuthenticated, setIsAuthenticated] = useState(false)
 
+  // 상단에 상태 추가
+  const [totalReviews, setTotalReviews] = useState(0)
+
   // 인증 상태 확인을 위한 useEffect 추가
   useEffect(() => {
     const checkAuth = async () => {
@@ -489,6 +492,15 @@ export default function TreatmentDetailPage() {
       setLoadingReviews(true)
 
       try {
+        // 총 리뷰 개수 조회
+        const { count: totalCount } = await supabase
+          .from('reviews')
+          .select('id', { count: 'exact' })
+          .eq('hospital_id', hospital.id)
+
+        setTotalReviews(totalCount || 0)
+
+        // 기존 리뷰 데이터 조회 로직...
         const { data, error } = await supabase.rpc('get_reviews', {
           p_treatment_id: null,
           p_hospital_id: hospital.id,
@@ -509,10 +521,7 @@ export default function TreatmentDetailPage() {
           p_offset: (reviewPage - 1) * REVIEWS_PER_PAGE
         })
 
-        if (error) {
-          console.error('리뷰 데이터 로드 에러:', error)
-          throw error
-        }
+        if (error) throw error
 
         console.log('받아온 리뷰 데이터:', data) // 데이터 확인용 로그
 
@@ -541,13 +550,17 @@ export default function TreatmentDetailPage() {
 
           console.log('변환된 리뷰 데이터:', formattedReviews) // 변환된 데이터 확인용 로그
 
+          let newReviews;
           if (reviewPage === 1) {
+            newReviews = formattedReviews;
             setRecentReviews(formattedReviews)
           } else {
-            setRecentReviews(prev => [...prev, ...formattedReviews])
+            newReviews = [...recentReviews, ...formattedReviews];
+            setRecentReviews(newReviews)
           }
           
-          setHasMoreReviews(data.length === REVIEWS_PER_PAGE)
+          // 더보기 버튼 표시 조건 수정 - 새로운 전체 리뷰 개수 사용
+          setHasMoreReviews(newReviews.length < totalCount)
         }
       } catch (error) {
         console.error('리뷰 데이터 로드 실패:', error)
@@ -557,7 +570,7 @@ export default function TreatmentDetailPage() {
     }
 
     fetchReviews()
-  }, [hospital?.id, reviewPage, reviewSortBy, isAuthenticated])  // reviewSortBy 의존성 추가
+  }, [hospital?.id, reviewPage, reviewSortBy, isAuthenticated])
 
   // 더보기 버튼 핸들러
   const handleLoadMoreReviews = () => {
@@ -1025,7 +1038,10 @@ export default function TreatmentDetailPage() {
                     key={treatment.id}
                     className="p-4 border rounded-lg hover:border-pink-500 transition-colors"
                   >
-                    <Link href={`/treatments/detail?id=${treatment.id}`}>
+                    <Link 
+                      href={`/treatments/detail?id=${treatment.id}`}
+                      onClick={() => handleTreatmentClick(treatment.id)}
+                    >
                       <div className="aspect-[2/1] relative mb-3 rounded-lg overflow-hidden">
                         <Image
                           src={treatment.thumbnail_url}
@@ -1110,15 +1126,19 @@ export default function TreatmentDetailPage() {
           <div className="hidden md:grid grid-cols-4 gap-4">
             {allTreatments.map((treatment) => (
               <div key={treatment.id}>
-                <TreatmentCard {...treatment} />
+                <div onClick={() => handleTreatmentClick(treatment.id)}>
+                  <TreatmentCard {...treatment} />
+                </div>
               </div>
             ))}
           </div>
-          {/* 모바일 버전은 그대로 유지 */}
+          {/* 모바일 버전 */}
           <div className="md:hidden flex flex-col gap-4">
             {allTreatments.map((treatment) => (
               <div key={treatment.id}>
-                <TreatmentCard {...treatment} />
+                <div onClick={() => handleTreatmentClick(treatment.id)}>
+                  <TreatmentCard {...treatment} />
+                </div>
               </div>
             ))}
           </div>
@@ -1175,7 +1195,7 @@ export default function TreatmentDetailPage() {
       <div className="fixed bottom-[56px] md:bottom-0 left-0 right-0 bg-white border-t z-[100] safe-area-bottom">
         <div className="container mx-auto px-4 py-3 flex gap-2">
           <Link 
-            href="#" 
+            href={`/reviews/form?hospital_id=${hospital?.id}`}
             className="flex-1 px-4 py-3 bg-violet-500 text-white rounded-lg text-center font-medium hover:bg-violet-600 transition-colors text-sm md:text-base"
           >
             리뷰쓰기

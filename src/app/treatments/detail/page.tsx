@@ -378,6 +378,7 @@ export default function TreatmentDetailPage() {
   const [isLiked, setIsLiked] = useState(false)
   const REVIEWS_PER_PAGE = 6
   const router = useRouter()
+  const [totalReviews, setTotalReviews] = useState(0)
 
   // 페이지 데이터 fetch 함수
   const fetchTreatmentDetail = async (treatmentId: string) => {
@@ -583,6 +584,14 @@ export default function TreatmentDetailPage() {
       setLoadingReviews(true)
 
       try {
+        // 총 리뷰 개수 조회
+        const { count: totalCount } = await supabase
+          .from('reviews')
+          .select('id', { count: 'exact' })
+          .eq('treatment_id', treatment.id)
+
+        setTotalReviews(totalCount || 0)
+
         const { data, error } = await supabase.rpc('get_reviews', {
           p_treatment_id: treatment.id,  // 시술 ID로 필터링
           p_hospital_id: null,
@@ -603,10 +612,7 @@ export default function TreatmentDetailPage() {
           p_offset: (reviewPage - 1) * REVIEWS_PER_PAGE
         })
 
-        if (error) {
-          console.error('리뷰 데이터 로드 에러:', error)
-          throw error
-        }
+        if (error) throw error
 
         if (data && Array.isArray(data)) {
           const formattedReviews = data.map(review => ({
@@ -631,13 +637,17 @@ export default function TreatmentDetailPage() {
             likeCount: review.like_count || 0
           }))
 
+          let newReviews;
           if (reviewPage === 1) {
+            newReviews = formattedReviews;
             setRecentReviews(formattedReviews)
           } else {
-            setRecentReviews(prev => [...prev, ...formattedReviews])
+            newReviews = [...recentReviews, ...formattedReviews];
+            setRecentReviews(newReviews)
           }
           
-          setHasMoreReviews(data.length === REVIEWS_PER_PAGE)
+          // 더보기 버튼 표시 조건 수정
+          setHasMoreReviews(newReviews.length < totalCount)
         }
       } catch (error) {
         console.error('리뷰 데이터 로드 실패:', error)
@@ -1094,12 +1104,7 @@ export default function TreatmentDetailPage() {
                   <div className="flex gap-4">
                     {similarTreatments.map((treatment) => (
                       <div key={treatment.id} className="w-[300px] flex-shrink-0">
-                        <Link 
-                          href={`/treatments/detail?id=${treatment.id}`}
-                          onClick={() => handleTreatmentClick(treatment.id)}
-                        >
-                          <TreatmentCard {...treatment} />
-                        </Link>
+                        <TreatmentCard {...treatment} />
                       </div>
                     ))}
                   </div>
@@ -1108,12 +1113,7 @@ export default function TreatmentDetailPage() {
               <div className="md:hidden flex flex-col gap-4">
                 {similarTreatments.map((treatment) => (
                   <div key={treatment.id}>
-                    <Link 
-                      href={`/treatments/detail?id=${treatment.id}`}
-                      onClick={() => handleTreatmentClick(treatment.id)}
-                    >
-                      <TreatmentCard {...treatment} />
-                    </Link>
+                    <TreatmentCard {...treatment} />
                   </div>
                 ))}
               </div>
@@ -1157,13 +1157,13 @@ export default function TreatmentDetailPage() {
         <div className="fixed bottom-[56px] md:bottom-0 left-0 right-0 bg-white border-t z-[100] safe-area-bottom">
           <div className="container mx-auto px-4 py-3 flex gap-2">
             <Link 
-              href={`/clinics/detail?id=${treatment.hospital_id}`}
+              href={`/clinics/detail?id=${treatment?.hospital_id}`}
               className="flex-1 px-4 py-3 bg-pink-500 text-white rounded-lg text-center font-medium hover:bg-pink-600 transition-colors text-sm md:text-base"
             >
               병원 바로가기
             </Link>
             <Link 
-              href="#" 
+              href={`/reviews/form?hospital_id=${treatment?.hospital_id}&treatment_id=${treatment?.id}`}
               className="flex-1 px-4 py-3 bg-violet-500 text-white rounded-lg text-center font-medium hover:bg-violet-600 transition-colors text-sm md:text-base"
             >
               리뷰쓰기

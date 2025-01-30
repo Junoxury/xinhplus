@@ -5,6 +5,8 @@ CREATE TABLE reviews (
   title VARCHAR(255) NOT NULL,
   content TEXT NOT NULL,
   rating DECIMAL(2,1) NOT NULL CHECK (rating >= 0 AND rating <= 5),
+  treatment_cost INTEGER,  -- 시술 비용 (null 허용)
+  treatment_date DATE,           -- 시술 날짜 (null 허용)
   view_count INTEGER DEFAULT 0,
   like_count INTEGER DEFAULT 0,
   comment_count INTEGER DEFAULT 0,  -- 댓글 수 컬럼 추가
@@ -106,4 +108,25 @@ CREATE POLICY "모든 사용자가 좋아요 조회 가능" ON review_likes
   FOR SELECT
   TO public
   USING (true);
+
+-- review_images 테이블에 대한 RLS 정책 추가
+CREATE POLICY "인증된 사용자는 리뷰 이미지 추가 가능" ON review_images
+  FOR INSERT
+  TO authenticated
+  WITH CHECK (true);
+
+CREATE POLICY "모든 사용자가 리뷰 이미지 조회 가능" ON review_images
+  FOR SELECT
+  TO public
+  USING (true);
+
+CREATE POLICY "작성자는 자신의 리뷰 이미지 수정/삭제 가능" ON review_images
+  FOR ALL
+  TO authenticated
+  USING (
+    review_id IN (
+      SELECT id FROM reviews 
+      WHERE author_id = auth.uid()
+    )
+  );
 
