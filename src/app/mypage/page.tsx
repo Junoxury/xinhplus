@@ -177,6 +177,7 @@ export default function MyPage() {
   const [hasMoreComments, setHasMoreComments] = useState(false)
   const [commentPage, setCommentPage] = useState(1)
   const [isLoadingComments, setIsLoadingComments] = useState(false)
+  const [preferredCategoryIds, setPreferredCategoryIds] = useState<number[]>([])
 
   const ITEMS_PER_PAGE = 8
   const currentTreatments = treatmentsList.slice(0, page * ITEMS_PER_PAGE)
@@ -189,11 +190,45 @@ export default function MyPage() {
     setLoading(false)
   }
 
-  const handleCategorySelect = (category: CategoryData) => {
-    if (selectedCategories.find(c => c.id === category.id)) {
-      setSelectedCategories(selectedCategories.filter(c => c.id !== category.id))
-    } else if (selectedCategories.length < 5) {
-      setSelectedCategories([...selectedCategories, category])
+  const handleCategorySelect = async (category: CategoryData, isAdd: boolean) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.user) {
+        alert("로그인이 필요합니다")
+        router.push('/auth/signin')
+        return
+      }
+
+      const { data, error } = await supabase.rpc('handle_user_preferred_category', {
+        p_user_id: session.user.id,
+        p_depth2_id: Number(category.id),
+        p_is_add: isAdd
+      })
+
+      if (error) throw error
+
+      if (data && data[0]) {
+        if (!data[0].success) {
+          alert(data[0].message)
+          return
+        }
+
+        // 반환된 카테고리 ID 배열을 기반으로 선택된 카테고리 업데이트
+        const newSelectedCategories = data[0].categories.map(id => {
+          const foundCategory = [...bodyParts, ...treatmentMethods].find(c => c.id === id)
+          return {
+            id: id,
+            label: foundCategory?.label || '',
+            name: foundCategory?.label || ''
+          }
+        })
+
+        setSelectedCategories(newSelectedCategories)
+      }
+
+    } catch (error) {
+      console.error('카테고리 업데이트 중 에러:', error)
+      alert("카테고리 업데이트에 실패했습니다")
     }
   }
 
@@ -227,29 +262,38 @@ export default function MyPage() {
         // 부위 카테고리 가져오기 (depth1_id = 1)
         const { data: bodyPartsData, error: bodyPartsError } = await supabase
           .rpc('get_categories', { p_parent_depth1_id: 1 })
-
-        console.log("부위 카테고리 원본 데이터:", bodyPartsData)
         
         if (bodyPartsError) throw bodyPartsError
         if (bodyPartsData) {
-          console.log("부위 카테고리 categories:", bodyPartsData.categories)
           setBodyParts(bodyPartsData.categories)
         }
 
         // 시술방법 카테고리 가져오기 (depth1_id = 2)
         const { data: methodsData, error: methodsError } = await supabase
           .rpc('get_categories', { p_parent_depth1_id: 2 })
-
-        console.log("시술방법 원본 데이터:", methodsData)
         
         if (methodsError) throw methodsError
         if (methodsData) {
-          console.log("시술방법 categories:", methodsData.categories)
           setTreatmentMethods(methodsData.categories)
         }
 
-        // 선택된 카테고리 확인
-        console.log("현재 선택된 카테고리:", selectedCategories)
+        // 카테고리 데이터가 모두 로드된 후 선호 카테고리 설정
+        if (preferredCategoryIds.length > 0) {
+          const allCategories = [
+            ...(bodyPartsData?.categories || []), 
+            ...(methodsData?.categories || [])
+          ]
+          const selectedCats = preferredCategoryIds.map(id => {
+            const foundCategory = allCategories.find(c => c.id === id)
+            return {
+              id: String(id),
+              label: foundCategory?.label || '',
+              name: foundCategory?.label || ''
+            }
+          })
+          setSelectedCategories(selectedCats)
+        }
+
       } catch (error) {
         console.error('카테고리 데이터 로딩 중 에러:', error)
       }
@@ -257,6 +301,22 @@ export default function MyPage() {
 
     fetchCategories()
   }, [])
+
+  // preferredCategoryIds가 변경될 때마다 선택된 카테고리 업데이트
+  useEffect(() => {
+    if (preferredCategoryIds.length > 0 && (bodyParts.length > 0 || treatmentMethods.length > 0)) {
+      const allCategories = [...bodyParts, ...treatmentMethods]
+      const selectedCats = preferredCategoryIds.map(id => {
+        const foundCategory = allCategories.find(c => c.id === id)
+        return {
+          id: String(id),
+          label: foundCategory?.label || '',
+          name: foundCategory?.label || ''
+        }
+      })
+      setSelectedCategories(selectedCats)
+    }
+  }, [preferredCategoryIds, bodyParts, treatmentMethods])
 
   // 인증 체크 로직 수정
   useEffect(() => {
@@ -272,62 +332,51 @@ export default function MyPage() {
 
         // 이메일 설정
         setUserEmail(session.user.email || '')
-        
-        // 닉네임 설정 (세션 메타데이터에서)
-        const nickname = session.user.user_metadata?.profile?.nickname
-        if (nickname) {
-          setUserNickname(nickname)
-          setEditingNickname(nickname)
-        }
 
-        // user_profile에서 프로필 데이터 가져오기
-        const { data, error: profileError } = await supabase
+        // 1. 기본 프로필 데이터 가져오기
+        const { data: profileData, error: profileError } = await supabase
           .from('user_profiles')
-          .select('city_id, phone, nickname, avatar_url')  // avatar_url 추가
+          .select(`
+            city_id, 
+            phone, 
+            nickname, 
+            avatar_url
+          `)
           .eq('id', session.user.id)
           .single()
 
         if (profileError) {
           console.error('프로필 데이터 로딩 중 에러:', profileError)
         } else {
-          // 프로필 데이터 설정
-          setProfileData(data)
+          setProfileData(profileData)
           
-          // 프로필의 닉네임이 있으면 이를 우선 사용
-          if (data?.nickname) {
-            setUserNickname(data.nickname)
-            setEditingNickname(data.nickname)
+          // 프로필의 닉네임 설정
+          if (profileData?.nickname) {
+            setUserNickname(profileData.nickname)
+            setEditingNickname(profileData.nickname)
           }
           
           // 전화번호 설정
-          if (data?.phone) {
-            setUserPhone(data.phone)
-            setEditingPhone(data.phone)
-          }
-          
-          // 도시 설정
-          if (data?.city_id) {
-            const selectedCityData = cities.find(city => city.id === data.city_id)
-            if (selectedCityData) {
-              setSelectedCity(selectedCityData)
-            }
+          if (profileData?.phone) {
+            setUserPhone(profileData.phone)
+            setEditingPhone(profileData.phone)
           }
         }
 
-        // 선호 카테고리 설정
-        const preferredCategories = session.user.user_metadata.preferred_categories || []
-        
-        // bodyParts와 treatmentMethods에서 선택된 카테고리 찾기
-        const selectedCats = [
-          ...bodyParts,
-          ...treatmentMethods
-        ].filter(category => preferredCategories.includes(Number(category.id)))
-          .map(cat => ({
-            id: String(cat.id),
-            name: cat.label  // label을 name으로 사용
-          }))
+        // 2. 선호 카테고리 데이터 가져오기
+        const { data: categoryData, error: categoryError } = await supabase
+          .from('user_preferred_categories')
+          .select('depth2_id')
+          .eq('user_id', session.user.id)
+          .order('created_at')
 
-        setSelectedCategories(selectedCats)
+        if (categoryError) {
+          console.error('선호 카테고리 로딩 중 에러:', categoryError)
+        } else if (categoryData) {
+          const categoryIds = categoryData.map(item => item.depth2_id)
+          console.log("선호 카테고리 IDs:", categoryIds)
+          setPreferredCategoryIds(categoryIds)
+        }
 
       } catch (error) {
         console.log("인증 체크 중 에러 발생:", error)
@@ -336,7 +385,17 @@ export default function MyPage() {
     }
 
     checkAuth()
-  }, [router, cities, bodyParts, treatmentMethods])
+  }, [router])
+
+  // 도시 데이터가 로드되면 선택된 도시 설정
+  useEffect(() => {
+    if (cities.length > 0 && profileData?.city_id) {
+      const selectedCityData = cities.find(city => city.id === profileData.city_id)
+      if (selectedCityData) {
+        setSelectedCity(selectedCityData)
+      }
+    }
+  }, [cities, profileData?.city_id])
 
   // 도시 선택 핸들러 수정
   const handleCitySelect = async (city: City) => {
@@ -926,22 +985,23 @@ export default function MyPage() {
               </h3>
               {likedPosts && likedPosts.length > 0 ? (
                 <>
-                  <div className="grid grid-cols-1 gap-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                     {likedPosts.map((post) => (
                       <BlogCard
                         key={post.id}
-                        id={post.id}
+                        id={post.id.toString()}
                         title={post.title}
                         content={post.content}
-                        thumbnailUrl={post.thumbnail_url}
-                        authorName={post.author_name}
-                        authorImage={post.author_avatar_url}
-                        date={post.created_at}
-                        viewCount={post.view_count}
-                        likeCount={post.like_count}
-                        commentCount={post.comment_count}
-                        tags={post.tags}
-                        slug={post.slug}
+                        thumbnail={post.thumbnail_url}
+                        author={{
+                          name: post.author_name || 'Unknown',
+                          avatar: post.author_avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=1'
+                        }}
+                        date={new Date(post.created_at).toLocaleDateString()}
+                        tags={post.tags?.map(tag => tag.name) || []}
+                        likes={post.like_count || 0}
+                        comments={post.comment_count || 0}
+                        views={post.view_count || 0}
                       />
                     ))}
                   </div>
@@ -1249,20 +1309,25 @@ export default function MyPage() {
                     {bodyParts.map((category) => (
                       <button
                         key={category.id}
-                        onClick={() => handleCategorySelect({
-                          id: Number(category.id),
-                          label: category.label || '',
-                          name: category.label || ''
-                        })}
+                        onClick={(e) => {
+                          e.preventDefault()
+                          const isSelected = selectedCategories.find(c => Number(c.id) === category.id)
+                          const categoryData: CategoryData = {
+                            id: category.id,
+                            label: category.label,
+                            name: category.label
+                          }
+                          handleCategorySelect(categoryData, !isSelected)
+                        }}
                         className={`flex items-center gap-1 px-3 py-1 rounded-full border 
-                          ${selectedCategories.find(c => c.id === String(category.id))
+                          ${selectedCategories.find(c => Number(c.id) === category.id)
                             ? 'border-pink-500 bg-pink-50'
                             : 'border-gray-200 hover:border-pink-500 hover:bg-pink-50'
                           } text-sm`}
-                        disabled={selectedCategories.length >= 5 && !selectedCategories.find(c => c.id === String(category.id))}
+                        disabled={selectedCategories.length >= 5 && !selectedCategories.find(c => Number(c.id) === category.id)}
                       >
                         <div className={`w-4 h-4 rounded-full border ${
-                          selectedCategories.find(c => c.id === String(category.id))
+                          selectedCategories.find(c => Number(c.id) === category.id)
                             ? 'border-pink-500 bg-pink-500'
                             : 'border-gray-300'
                         }`} />
@@ -1277,20 +1342,25 @@ export default function MyPage() {
                     {treatmentMethods.map((category) => (
                       <button
                         key={category.id}
-                        onClick={() => handleCategorySelect({
-                          id: Number(category.id),
-                          label: category.label || '',
-                          name: category.label || ''
-                        })}
+                        onClick={(e) => {
+                          e.preventDefault()
+                          const isSelected = selectedCategories.find(c => Number(c.id) === category.id)
+                          const categoryData: CategoryData = {
+                            id: category.id,
+                            label: category.label,
+                            name: category.label
+                          }
+                          handleCategorySelect(categoryData, !isSelected)
+                        }}
                         className={`flex items-center gap-1 px-3 py-1 rounded-full border 
-                          ${selectedCategories.find(c => c.id === String(category.id))
+                          ${selectedCategories.find(c => Number(c.id) === category.id)
                             ? 'border-pink-500 bg-pink-50'
                             : 'border-gray-200 hover:border-pink-500 hover:bg-pink-50'
                           } text-sm`}
-                        disabled={selectedCategories.length >= 5 && !selectedCategories.find(c => c.id === String(category.id))}
+                        disabled={selectedCategories.length >= 5 && !selectedCategories.find(c => Number(c.id) === category.id)}
                       >
                         <div className={`w-4 h-4 rounded-full border ${
-                          selectedCategories.find(c => c.id === String(category.id))
+                          selectedCategories.find(c => Number(c.id) === category.id)
                             ? 'border-pink-500 bg-pink-500'
                             : 'border-gray-300'
                         }`} />
@@ -1315,7 +1385,10 @@ export default function MyPage() {
                     {cities.map((city) => (
                       <button
                         key={city.id}
-                        onClick={() => handleCitySelect(city)}
+                        onClick={(e) => {
+                          e.preventDefault()
+                          handleCitySelect(city)
+                        }}
                         className={`px-4 py-2 rounded-md text-sm transition-colors
                           ${selectedCity?.id === city.id
                             ? 'bg-blue-500 text-white border-blue-500'
@@ -1342,7 +1415,10 @@ export default function MyPage() {
             {['Beauty', 'Clinics', 'Reviews', 'Posts'].map((tab) => (
               <button
                 key={tab}
-                onClick={() => setWishlistTab(tab)}
+                onClick={(e) => {
+                  e.preventDefault()
+                  setWishlistTab(tab)
+                }}
                 className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors focus:outline-none
                   ${wishlistTab === tab 
                     ? 'bg-white shadow-sm' 
@@ -1371,7 +1447,10 @@ export default function MyPage() {
             ].map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActivityTab(tab.id)}
+                onClick={(e) => {
+                  e.preventDefault()
+                  setActivityTab(tab.id)
+                }}
                 className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors focus:outline-none
                   ${activityTab === tab.id 
                     ? 'bg-white shadow-sm' 

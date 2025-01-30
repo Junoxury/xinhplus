@@ -164,6 +164,7 @@ export default function PostDetailPage() {
   const postId = searchParams.get('id')
   
   const [isLiked, setIsLiked] = useState(false)
+  const [likeCount, setLikeCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [post, setPost] = useState<PostDetail | null>(null)
   const [relatedPosts, setRelatedPosts] = useState<RelatedPost[]>([])
@@ -178,11 +179,66 @@ export default function PostDetailPage() {
   useEffect(() => {
     if (post) {
       fetchRelatedPosts(post.id);
+      setLikeCount(post.like_count)
+      checkIsLiked(post.id)
     }
   }, [post]);
 
-  const handleLike = () => {
-    setIsLiked(!isLiked)
+  // 좋아요 상태 체크
+  const checkIsLiked = async (postId: number) => {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session?.user) return
+
+    const { data, error } = await supabase
+      .from('post_likes')
+      .select('*')
+      .eq('post_id', postId)
+      .eq('user_id', session.user.id)
+      .single()
+
+    if (data) {
+      setIsLiked(true)
+    }
+  }
+
+  const handleLike = async () => {
+    const { data: { session } } = await supabase.auth.getSession()
+    
+    if (!session?.user) {
+      toast({
+        title: "로그인이 필요합니다",
+        description: "좋아요를 누르려면 먼저 로그인해주세요",
+        variant: "destructive",
+      })
+      router.push('/auth/signin')
+      return
+    }
+
+    try {
+      const { data, error } = await supabase.rpc('toggle_post_like', {
+        p_post_id: post?.id,
+        p_user_id: session.user.id
+      })
+
+      if (error) throw error
+
+      if (data && data[0]) {
+        setIsLiked(data[0].is_liked)
+        setLikeCount(data[0].new_like_count)
+        
+        toast({
+          title: data[0].is_liked ? "좋아요를 눌렀습니다" : "좋아요를 취소했습니다",
+          variant: "default",
+        })
+      }
+    } catch (error) {
+      console.error('Error toggling like:', error)
+      toast({
+        title: "오류가 발생했습니다",
+        description: "잠시 후 다시 시도해주세요",
+        variant: "destructive",
+      })
+    }
   }
 
   const handleShare = async () => {
@@ -334,15 +390,15 @@ export default function PostDetailPage() {
             <div className="flex items-center gap-4">
               <div className="flex items-center">
                 <MessageCircle className="w-5 h-5 text-gray-400" />
-                <span className="ml-1 text-gray-600">{post.comment_count}</span>
+                <span className="ml-1 text-gray-600">{post?.comment_count || 0}</span>
               </div>
               <div className="flex items-center">
                 <Eye className="w-5 h-5 text-gray-400" />
-                <span className="ml-1 text-gray-600">{post.view_count}</span>
+                <span className="ml-1 text-gray-600">{post?.view_count || 0}</span>
               </div>
               <div className="flex items-center">
-                <Heart className="w-5 h-5 text-gray-400" />
-                <span className="ml-1 text-gray-600">{post.like_count}</span>
+                <Heart className={`w-5 h-5 ${isLiked ? 'text-red-500 fill-current' : 'text-gray-400'}`} />
+                <span className="ml-1 text-gray-600">{likeCount}</span>
               </div>
             </div>
           </div>

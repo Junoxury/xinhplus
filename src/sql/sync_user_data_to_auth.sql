@@ -4,7 +4,20 @@ returns trigger as $$
 declare
   profile_data json;
   categories json;
+  v_user_id uuid;
 begin
+  -- TG_OP와 TG_TABLE_NAME을 사용하여 트리거 작업 유형과 테이블 확인
+  IF TG_TABLE_NAME = 'user_profiles' THEN
+    v_user_id := NEW.id;  -- user_profiles 테이블은 id 컬럼 사용
+  ELSE
+    -- user_preferred_categories 테이블의 경우
+    IF TG_OP = 'DELETE' THEN
+      v_user_id := OLD.user_id;  -- DELETE는 OLD 레코드 사용
+    ELSE
+      v_user_id := NEW.user_id;  -- INSERT/UPDATE는 NEW 레코드 사용
+    END IF;
+  END IF;
+
   -- user_profiles 데이터 가져오기
   select json_build_object(
     'gender', p.gender,
@@ -14,13 +27,13 @@ begin
     'nickname', p.nickname
   )
   from public.user_profiles p
-  where p.id = new.id
+  where p.id = v_user_id
   into profile_data;
 
   -- user_preferred_categories 데이터 가져오기
   select json_agg(depth2_id)
   from public.user_preferred_categories
-  where user_id = new.id
+  where user_id = v_user_id
   into categories;
 
   -- auth.users 메타데이터 업데이트
@@ -30,9 +43,9 @@ begin
       'profile', profile_data,
       'preferred_categories', coalesce(categories, '[]'::json)
     )
-  where id = new.id;
+  where id = v_user_id;
   
-  return new;
+  return coalesce(NEW, OLD);
 end;
 $$ language plpgsql security definer;
 
