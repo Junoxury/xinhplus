@@ -3,42 +3,34 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 export async function middleware(req: NextRequest) {
-  // 가장 기본적인 로그부터 확인
-  console.log('Middleware is running!')
-  console.log('Request path:', req.nextUrl.pathname)
-
   const res = NextResponse.next()
-  
-  // Supabase 클라이언트 생성
   const supabase = createMiddlewareClient({ req, res })
 
   try {
-    console.log("=== Middleware Check Start ===")
-    console.log("Current path:", req.nextUrl.pathname)
+    // 현재 사용자의 인증 상태 확인
+    const { data: { user } } = await supabase.auth.getUser()
 
-    // 세션 체크
-    const { data, error } = await supabase.auth.getSession()
-    console.log("Session data:", data)
-    console.log("Session error:", error)
+    // 로그인이 필요한 페이지들
+    const authRequiredPaths = [
+      '/mypage',
+      '/treatments/consult',
+      '/clinics/consult',
+      '/reviews/form'
+    ]
 
-    // 보호된 경로에 대한 접근 체크
-    const protectedPaths = ['/reviews/form', '/treatments/consult']
-    const isProtectedPath = protectedPaths.some(path => 
+    // 현재 경로가 로그인이 필요한 페이지인지 확인
+    const isAuthRequired = authRequiredPaths.some(path => 
       req.nextUrl.pathname.startsWith(path)
     )
-    console.log("Is protected path:", isProtectedPath)
-    console.log("Has session:", !!data.session)
 
-    // 세션 체크만 하고 리다이렉트는 하지 않음
-    if (isProtectedPath && !data.session) {
-      console.log("No session found for protected path")
+    // 인증 상태 확인만 하고 리다이렉트는 하지 않음
+    if (isAuthRequired) {
+      console.log('Auth required path accessed. User:', !!user)
     }
 
-    console.log("=== Middleware Check End ===")
     return res
-
   } catch (error) {
-    console.error('Middleware detailed error:', error)
+    console.error('Middleware error:', error)
     return res
   }
 }
@@ -46,8 +38,9 @@ export async function middleware(req: NextRequest) {
 // 미들웨어가 실행될 경로 설정
 export const config = {
   matcher: [
-    '/reviews/form',
-    '/treatments/consult',
-    '/treatments/consult/:path*'
+    '/mypage/:path*',
+    '/treatments/consult/:path*',
+    '/clinics/consult/:path*',
+    '/reviews/form'
   ]
 } 

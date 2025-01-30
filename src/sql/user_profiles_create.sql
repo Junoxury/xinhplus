@@ -1,6 +1,7 @@
 -- 사용자 프로필 테이블 생성
 CREATE TABLE user_profiles (
     id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,  -- Supabase auth.users와 1:1 관계
+    nickname varchar(50),                                            -- 닉네임 (nullable)
     gender varchar(10) NOT NULL CHECK (gender IN ('male', 'female')), -- 성별
     phone varchar(20) NOT NULL,                                       -- 전화번호
     city_id bigint REFERENCES cities(id),                            -- 거주 도시
@@ -9,6 +10,9 @@ CREATE TABLE user_profiles (
     created_at timestamptz DEFAULT now(),
     updated_at timestamptz DEFAULT now()
 );
+
+-- nickname 유니크 제약 조건 추가 (NULL은 중복 가능)
+ALTER TABLE user_profiles ADD CONSTRAINT user_profiles_nickname_unique UNIQUE (nickname);
 
 -- 사용자가 선호하는 카테고리 (다대다 관계)
 CREATE TABLE user_preferred_categories (
