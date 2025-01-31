@@ -63,6 +63,7 @@ export default function ReviewFormPage() {
     title?: string;
     content?: string;
     agreements?: string;
+    general?: string;
   }>({})
   const [beforeImageFiles, setBeforeImageFiles] = useState<File[]>([])
   const [afterImageFiles, setAfterImageFiles] = useState<File[]>([])
@@ -434,7 +435,7 @@ export default function ReviewFormPage() {
         .single()
 
       if (reviewError) {
-        console.error('리뷰 저장 에러:', reviewError) // 자세한 에러 로깅
+        console.error('리뷰 저장 에러:', reviewError)
         throw reviewError
       }
 
@@ -494,13 +495,37 @@ export default function ReviewFormPage() {
         throw imagesError
       }
 
-      // 성공 메시지 표시 후 리다이렉트
-      alert('리뷰가 정상적으로 등록되었습니다.')
-      router.push(`/reviews/detail?id=${review.id}`)
+      // 리뷰가 성공적으로 저장된 후 통계 업데이트
+      if (review) {
+        // 1. treatments 테이블 업데이트
+        const { error: treatmentUpdateError } = await supabase.rpc('update_treatment_stats', {
+          p_treatment_id: selectedTreatment?.id
+        })
+
+        if (treatmentUpdateError) {
+          console.error('시술 통계 업데이트 에러:', treatmentUpdateError)
+        }
+
+        // 2. hospitals 테이블 업데이트
+        const { error: hospitalUpdateError } = await supabase.rpc('update_hospital_stats', {
+          p_hospital_id: selectedHospital?.id
+        })
+
+        if (hospitalUpdateError) {
+          console.error('병원 통계 업데이트 에러:', hospitalUpdateError)
+        }
+      }
+
+      // 성공 메시지 표시 및 페이지 이동
+      if (window.confirm('리뷰가 성공적으로 등록되었습니다.')) {
+        router.push('/reviews')
+      }
 
     } catch (error) {
-      console.error('상세 에러 정보:', error)
-      alert('리뷰 저장에 실패했습니다. 다시 시도해주세요.')
+      console.error('리뷰 등록 에러:', error)
+      setFormErrors({
+        general: '리뷰 등록 중 오류가 발생했습니다. 다시 시도해주세요.'
+      })
     }
   }
 

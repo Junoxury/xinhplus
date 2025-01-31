@@ -44,6 +44,15 @@ export default function ConsultPage() {
           router.push('/login?redirect=/clinics/consult')
           return
         }
+
+        // 사용자 정보로 폼 데이터 초기화
+        setFormData(prev => ({
+          ...prev,
+          email: user.email || '',
+          phone: user.user_metadata.profile?.phone || '',
+          name: user.user_metadata.profile?.nickname || ''
+        }))
+
       } catch (error) {
         console.log("Try-catch error:", error)
         router.push('/login?redirect=/clinics/consult')

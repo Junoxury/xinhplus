@@ -19,7 +19,7 @@ BEGIN
   SET view_count = view_count + 1 
   WHERE id = p_review_id;
 
-  -- 기존 쿼리 실행
+  -- 기존 쿼리 수정
   WITH review_base AS (
     SELECT 
       r.id,
@@ -33,8 +33,14 @@ BEGIN
       r.is_best,
       r.is_google,
       r.author_id,
-      (u.raw_user_meta_data->>'full_name')::VARCHAR as author_name,
-      (u.raw_user_meta_data->>'avatar_url')::VARCHAR as author_image,
+      -- profile 내부의 nickname을 가져오고, 없으면 email 사용
+      COALESCE(
+        (u.raw_user_meta_data->>'profile')::jsonb->>'nickname',
+        mask_email(u.raw_user_meta_data->>'email')
+      ) as author_name,
+      -- profile 내부의 avatar_url
+      ((u.raw_user_meta_data->>'profile')::jsonb->>'avatar_url')::VARCHAR as author_image,
+      (u.raw_user_meta_data->>'email')::VARCHAR as author_email,
       r.hospital_id,
       h.name as hospital_name,
       h.address as hospital_address,
@@ -49,7 +55,7 @@ BEGIN
       t.discount_price as treatment_discount_price,
       t.rating as treatment_rating,
       t.summary as treatment_summary,
-      -- 좋아요 상태 확인 추가
+      -- 좋아요 상태 확인
       CASE 
         WHEN p_user_id IS NULL THEN FALSE
         ELSE EXISTS (
@@ -101,8 +107,12 @@ BEGIN
           'id', rc.id,
           'content', rc.content,
           'author_id', rc.author_id,
-          'author_name', (u.raw_user_meta_data->>'full_name')::VARCHAR,
-          'author_image', (u.raw_user_meta_data->>'avatar_url')::VARCHAR,
+          'author_name', COALESCE(
+            (u.raw_user_meta_data->>'profile')::jsonb->>'nickname',
+            mask_email(u.raw_user_meta_data->>'email')
+          ),
+          'author_image', ((u.raw_user_meta_data->>'profile')::jsonb->>'avatar_url')::VARCHAR,
+          'author_email', (u.raw_user_meta_data->>'email')::VARCHAR,
           'like_count', rc.like_count,
           'created_at', rc.created_at,
           'replies', (
@@ -111,8 +121,12 @@ BEGIN
                 'id', rc2.id,
                 'content', rc2.content,
                 'author_id', rc2.author_id,
-                'author_name', (u2.raw_user_meta_data->>'full_name')::VARCHAR,
-                'author_image', (u2.raw_user_meta_data->>'avatar_url')::VARCHAR,
+                'author_name', COALESCE(
+                  (u2.raw_user_meta_data->>'profile')::jsonb->>'nickname',
+                  mask_email(u2.raw_user_meta_data->>'email')
+                ),
+                'author_image', ((u2.raw_user_meta_data->>'profile')::jsonb->>'avatar_url')::VARCHAR,
+                'author_email', (u2.raw_user_meta_data->>'email')::VARCHAR,
                 'like_count', rc2.like_count,
                 'created_at', rc2.created_at
               ) ORDER BY rc2.created_at ASC
@@ -143,6 +157,7 @@ BEGIN
       'author_id', rb.author_id,
       'author_name', rb.author_name,
       'author_image', rb.author_image,
+      'author_email', rb.author_email,
       'hospital_id', rb.hospital_id,
       'hospital_name', rb.hospital_name,
       'hospital_address', rb.hospital_address,
@@ -175,4 +190,16 @@ BEGIN
 
   RETURN result;
 END;
-$$; 
+$$;
+
+-- email 마스킹 함수 추가
+CREATE OR REPLACE FUNCTION mask_email(email VARCHAR) 
+RETURNS VARCHAR AS $$
+BEGIN
+  RETURN CASE 
+    WHEN position('@' in email) > 0 THEN
+      substring(email, 1, LEAST(5, position('@' in email) - 1)) || '...'
+    ELSE email
+  END;
+END;
+$$ LANGUAGE plpgsql; 

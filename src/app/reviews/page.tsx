@@ -214,6 +214,12 @@ export default function ReviewPage() {
 
         if (data) {
           const formattedReviews = data.map(review => {
+            // 데이터 매핑 전에 로그 추가
+            console.log('Raw review data:', {
+              author_name: review.author_name,
+              email: review.email
+            });
+
             // categories 처리 수정
             const categoryNames = [];
             if (review.categories?.depth2?.name) {
@@ -231,7 +237,7 @@ export default function ReviewPage() {
               rating: review.rating || 0,
               content: review.content || '',
               author: review.author_name || '익명',
-              authorImage: review.author_image || '/images/default-avatar.png',
+              authorImage: review.author_image || null,
               date: new Date(review.created_at).toLocaleDateString(),
               treatmentName: review.treatment_name || '',
               categories: categoryNames,  // 배열로 변환된 카테고리 이름들

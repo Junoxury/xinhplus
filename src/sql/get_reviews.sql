@@ -144,8 +144,11 @@ BEGIN
     r.like_count,
     r.comment_count::BIGINT,
     r.author_id,
-    (u.raw_user_meta_data->>'full_name')::VARCHAR as author_name,
-    (u.raw_user_meta_data->>'avatar_url')::VARCHAR as author_image,
+    COALESCE(
+      (u.raw_user_meta_data->>'profile')::jsonb->>'nickname',
+      u.raw_user_meta_data->>'email'
+    )::VARCHAR as author_name,
+    ((u.raw_user_meta_data->>'profile')::jsonb->>'avatar_url')::VARCHAR as author_image,
     r.created_at,
     r.treatment_id,
     t.title as treatment_name,

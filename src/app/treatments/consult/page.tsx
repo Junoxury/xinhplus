@@ -43,7 +43,7 @@ export default function ConsultPage() {
     general?: string;
   }>({})
 
-  // 로그인 체크
+  // 로그인 체크 및 사용자 정보 설정
   useEffect(() => {
     const checkAuth = async () => {
       console.log("=== Auth Check Start ===")
@@ -59,7 +59,14 @@ export default function ConsultPage() {
           return
         }
 
-        // 정상적인 경우 로그만 출력
+        // 사용자 정보로 폼 데이터 초기화
+        setFormData(prev => ({
+          ...prev,
+          email: user.email || '',
+          phone: user.user_metadata.profile?.phone || '',
+          name: user.user_metadata.profile?.nickname || ''
+        }))
+
         console.log("User logged in:", user)
         console.log("=== Auth Check End ===")
 

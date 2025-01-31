@@ -4,16 +4,20 @@ import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Search, Menu, User } from 'lucide-react'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 
 interface UserData {
   email: string
+  avatar_url?: string
+  nickname?: string
+  id?: string
 }
 
 export function Header() {
   const pathname = usePathname()
+  const router = useRouter()
   const [user, setUser] = useState<UserData | null>(null)
 
   useEffect(() => {
@@ -21,7 +25,13 @@ export function Header() {
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (user?.email) {
-        setUser({ email: user.email })
+        console.log('Current user:', user)
+        setUser({
+          id: user.id,
+          email: user.email,
+          avatar_url: user.user_metadata.profile?.avatar_url,
+          nickname: user.user_metadata.profile?.nickname
+        })
       }
     }
 
@@ -30,7 +40,13 @@ export function Header() {
     // 인증 상태 변경 감지
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user?.email) {
-        setUser({ email: session.user.email })
+        console.log('Session user:', session.user)
+        setUser({
+          id: session.user.id,
+          email: session.user.email,
+          avatar_url: session.user.user_metadata.profile?.avatar_url,
+          nickname: session.user.user_metadata.profile?.nickname
+        })
       } else {
         setUser(null)
       }
@@ -41,9 +57,12 @@ export function Header() {
     }
   }, [])
 
-  // 이메일의 첫 글자를 가져오는 함수
-  const getInitial = (email: string) => {
-    return email.charAt(0).toUpperCase()
+  // 사용자 표시 이니셜을 가져오는 함수
+  const getDisplayInitial = (user: UserData) => {
+    if (user.nickname) {
+      return user.nickname.charAt(0).toUpperCase()
+    }
+    return user.email.charAt(0).toUpperCase()
   }
 
   // 현재 경로가 특정 메뉴에 속하는지 확인하는 함수
@@ -98,14 +117,25 @@ export function Header() {
           {user ? (
             // 로그인 상태
             <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-pink-500 text-white flex items-center justify-center font-medium">
-                  {getInitial(user.email)}
+              <Link 
+                href="/mypage"
+                className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+              >
+                <div className="w-8 h-8 rounded-full bg-pink-500 text-white flex items-center justify-center font-medium overflow-hidden">
+                  {user.avatar_url ? (
+                    <img 
+                      src={user.avatar_url} 
+                      alt="프로필 이미지" 
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    getDisplayInitial(user)
+                  )}
                 </div>
                 <span className="text-sm text-gray-600 hidden md:block">
-                  {user.email}
+                  {user.nickname || user.email}
                 </span>
-              </div>
+              </Link>
             </div>
           ) : (
             // 비로그인 상태

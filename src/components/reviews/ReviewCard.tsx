@@ -91,6 +91,16 @@ export function ReviewCard({
     }
   }
 
+  function formatAuthorName(name: string) {
+    if (name.includes('@')) {
+      const localPart = name.split('@')[0];
+      return localPart.length > 5 
+        ? localPart.substring(0, 5) + '...' 
+        : localPart;
+    }
+    return name;
+  }
+
   return (
     <Link 
       href={`/reviews/detail?id=${id}`}
@@ -165,7 +175,9 @@ export function ReviewCard({
                 <AvatarImage src={authorImage} alt={author} />
                 <AvatarFallback>{author[0]}</AvatarFallback>
               </Avatar>
-              <span className="text-sm font-medium">{author}</span>
+              <span className="text-sm font-medium">
+                {formatAuthorName(author)}
+              </span>
               <span className="text-sm text-gray-500">·</span>
               <span className="text-sm text-gray-500">{date}</span>
             </div>

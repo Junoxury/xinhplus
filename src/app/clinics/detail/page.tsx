@@ -534,7 +534,7 @@ export default function TreatmentDetailPage() {
             rating: review.rating || 0,
             content: review.content || '',
             author: review.author_name || '익명',
-            authorImage: review.author_image || '/images/default-avatar.png',
+            authorImage: review.author_image || null,
             date: new Date(review.created_at).toLocaleDateString(),
             treatmentName: review.treatment_name || '',
             categories: review.categories ? [review.categories.depth2?.name, review.categories.depth3?.name].filter(Boolean) : [],

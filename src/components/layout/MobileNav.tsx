@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, Search, Building2, MessageCircleHeart, Menu, Video, ChevronLeft, ChevronRight, Gift } from 'lucide-react'
+import { Home, Search, Building2, MessageCircleHeart, User2, Video, ChevronLeft, ChevronRight, Gift } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useRef, useState, useEffect } from 'react'
 
@@ -38,9 +38,9 @@ const navItems = [
     icon: Gift
   },
   {
-    label: '더보기',
-    href: '/more',
-    icon: Menu
+    label: 'MyPage',
+    href: '/mypage',
+    icon: User2
   }
 ]
 
