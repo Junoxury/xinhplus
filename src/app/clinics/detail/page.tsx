@@ -578,7 +578,7 @@ export default function TreatmentDetailPage() {
   }
 
   // 병원의 모든 시술 가져오기
-  const fetchAllTreatments = useCallback(async (isLoadMore = false) => {
+  const fetchAllTreatments = useCallback(async (isLoadMore = false, currentPage = 0) => {
     if (!hospital?.id) return
 
     try {
@@ -592,7 +592,7 @@ export default function TreatmentDetailPage() {
           p_is_discounted: null,
           p_is_recommended: null,
           p_limit: ITEMS_PER_PAGE,
-          p_offset: page * ITEMS_PER_PAGE,
+          p_offset: currentPage * ITEMS_PER_PAGE,
           p_price_from: null,
           p_price_to: null,
           p_sort_by: 'view_count'
@@ -611,31 +611,41 @@ export default function TreatmentDetailPage() {
           )
         )
 
+        // 더보기일 때는 기존 데이터에 추가
         if (isLoadMore) {
           setAllTreatments(prev => [...prev, ...filteredData])
         } else {
+          // 초기 로드일 때만 데이터 새로 설정
           setAllTreatments(filteredData)
         }
+        
+        // 다음 페이지 존재 여부 확인
         setHasMore(data.length === ITEMS_PER_PAGE)
       }
 
     } catch (error) {
       console.error('Error in fetchAllTreatments:', error)
     }
-  }, [hospital?.id, page, featuredTreatments])
+  }, [hospital?.id, featuredTreatments])
 
   // 초기 로드
   useEffect(() => {
     setPage(0)
     if (featuredTreatments.length > 0) {
-      fetchAllTreatments()
+      fetchAllTreatments(false, 0)  // 현재 페이지 번호 전달
     }
   }, [fetchAllTreatments])
 
   // 더보기 클릭 시
   const handleLoadMore = () => {
-    setPage(prev => prev + 1)
-    fetchAllTreatments(true)
+    console.log('더보기 클릭:', {
+      currentPage: page,
+      currentTreatmentsLength: allTreatments.length
+    })
+    
+    const nextPage = page + 1
+    setPage(nextPage)
+    fetchAllTreatments(true, nextPage)
   }
 
   // 대표 시술 가져오기
@@ -1127,21 +1137,25 @@ export default function TreatmentDetailPage() {
           {/* PC 버전 - 4열 그리드로 변경 */}
           <div className="hidden md:grid grid-cols-4 gap-4">
             {allTreatments.map((treatment) => (
-              <div key={treatment.id}>
-                <div onClick={() => handleTreatmentClick(treatment.id)}>
-                  <TreatmentCard {...treatment} />
-                </div>
-              </div>
+              <Link 
+                key={treatment.id}
+                href={`/treatments/detail?id=${treatment.id}`}
+                className="block"
+              >
+                <TreatmentCard {...treatment} disableLink />
+              </Link>
             ))}
           </div>
           {/* 모바일 버전 */}
           <div className="md:hidden flex flex-col gap-4">
             {allTreatments.map((treatment) => (
-              <div key={treatment.id}>
-                <div onClick={() => handleTreatmentClick(treatment.id)}>
-                  <TreatmentCard {...treatment} />
-                </div>
-              </div>
+              <Link 
+                key={treatment.id}
+                href={`/treatments/detail?id=${treatment.id}`}
+                className="block"
+              >
+                <TreatmentCard {...treatment} disableLink />
+              </Link>
             ))}
           </div>
 

@@ -10,10 +10,10 @@ import bodyPartsData from '@/data/bodyParts.json'
 import treatmentMethodsData from '@/data/treatmentMethods.json'
 import { CategorySection } from '@/components/treatments/CategorySection'
 import Image from 'next/image'
-import { Share2, Heart, Home, Facebook, Phone, MessageCircle, Eye } from 'lucide-react'
+import { Share2, Heart, Home, Facebook, Phone, MessageCircle, Eye, ChevronDown } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { ChevronDown, ChevronRight, ChevronLeft } from 'lucide-react'
+import { ChevronRight, ChevronLeft } from 'lucide-react'
 import { ReviewCard } from '@/components/reviews/ReviewCard'
 import { TreatmentCard } from '@/components/treatments/TreatmentCard'
 import { useSearchParams } from 'next/navigation'
@@ -379,6 +379,7 @@ export default function TreatmentDetailPage() {
   const REVIEWS_PER_PAGE = 6
   const router = useRouter()
   const [totalReviews, setTotalReviews] = useState(0)
+  const [isContentExpanded, setIsContentExpanded] = useState(false)
 
   // 페이지 데이터 fetch 함수
   const fetchTreatmentDetail = async (treatmentId: string) => {
@@ -970,9 +971,28 @@ export default function TreatmentDetailPage() {
               <div className="md:w-2/3">
                 <div className="p-6">
                   <div 
-                    className="w-full prose max-w-none"
-                    dangerouslySetInnerHTML={{ __html: treatment.detail_content }}
-                  />
+                    className={`w-full prose max-w-none relative ${!isContentExpanded ? 'max-h-[800px] overflow-hidden' : ''}`}
+                  >
+                    <div
+                      className="w-full"
+                      dangerouslySetInnerHTML={{ __html: treatment.detail_content }}
+                    />
+                    {!isContentExpanded && (
+                      <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-white to-transparent" />
+                    )}
+                  </div>
+                  {!isContentExpanded && (
+                    <div className="mt-4 text-center">
+                      <Button
+                        variant="outline"
+                        onClick={() => setIsContentExpanded(true)}
+                        className="px-8"
+                      >
+                        <ChevronDown className="w-4 h-4 mr-2" />
+                        더보기
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
 

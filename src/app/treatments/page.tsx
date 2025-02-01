@@ -226,21 +226,31 @@ export default function TreatmentPage() {
           categories: item.categories || [],
           is_advertised: Boolean(item.is_advertised),
           is_recommended: Boolean(item.is_recommended),
-          disableLink: true  // 링크 비활성화
+          disableLink: true
         }))
-        setTreatments(formattedTreatments)
+
+        // 더보기인 경우 기존 데이터에 추가
+        if (isLoadMore) {
+          setTreatments(prev => [...prev, ...formattedTreatments])
+        } else {
+          // 초기 로드인 경우 데이터 새로 설정
+          setTreatments(formattedTreatments)
+        }
       } 
       // 데이터가 없는 경우
       else {
-        setTreatments([])
+        if (!isLoadMore) {
+          setTreatments([])
+        }
         setHasMore(false)
-        setTotalCount(0)  // 총 개수를 0으로 설정
+        setTotalCount(0)
       }
 
     } catch (error) {
       console.error('Error fetching treatments:', error)
-      // 에러 발생 시에도 상태 초기화
-      setTreatments([])
+      if (!isLoadMore) {
+        setTreatments([])
+      }
       setHasMore(false)
       setTotalCount(0)
     } finally {
