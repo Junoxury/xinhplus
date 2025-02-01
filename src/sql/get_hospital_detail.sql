@@ -56,12 +56,12 @@ BEGIN
             hc.hospital_id as h_id,
             hc.depth2_category_id,
             jsonb_agg(
-                jsonb_build_object(
+                DISTINCT jsonb_build_object(
                     'id', cd3.id,
                     'label', COALESCE(cd3.shortname, cd3.name),
-                    'parent_id', cd3.parent_id
+                    'parent_id', cd3.parent_id,
+                    'sort_order', cd3.sort_order
                 )
-                ORDER BY cd3.sort_order
             ) as depth3_list
         FROM hospital_categories hc
         JOIN categories cd3 ON hc.depth3_category_id = cd3.id
@@ -70,17 +70,17 @@ BEGIN
         GROUP BY hc.hospital_id, hc.depth2_category_id
     ),
     hospital_categories_grouped AS (
-        SELECT 
+        SELECT DISTINCT
             hc.hospital_id as h_id,
             jsonb_agg(
-                jsonb_build_object(
+                DISTINCT jsonb_build_object(
                     'depth2', jsonb_build_object(
                         'id', cd2.id, 
-                        'label', COALESCE(cd2.shortname, cd2.name)
+                        'label', COALESCE(cd2.shortname, cd2.name),
+                        'sort_order', cd2.sort_order
                     ),
                     'depth3', COALESCE(d3c.depth3_list, '[]'::jsonb)
                 )
-                ORDER BY cd2.sort_order
             ) as categories
         FROM hospital_categories hc
         JOIN categories cd2 ON hc.depth2_category_id = cd2.id AND cd2.depth = 2
@@ -90,6 +90,7 @@ BEGIN
         WHERE hc.hospital_id = p_hospital_id
         GROUP BY hc.hospital_id
     )
+    -- 메인 쿼리는 그대로 유지
     SELECT 
         h.id,
         h.name as hospital_name,
@@ -119,7 +120,7 @@ BEGIN
         c.name as city_name,
         c.name_vi as city_name_vi,
         c.name_ko as city_name_ko,
-        COALESCE(hcg.categories, '{}'::jsonb) as categories,
+        hcg.categories as categories,
         h.created_at,
         h.updated_at
     FROM hospitals h

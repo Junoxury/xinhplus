@@ -856,7 +856,9 @@ export default function TreatmentDetailPage() {
 
               {/* 요약 설명 */}
               <div className="mb-6 text-gray-600">
-                <p className="leading-relaxed">{hospital?.description}</p>
+                <p className="leading-relaxed whitespace-pre-wrap">
+                  {hospital?.description}
+                </p>
               </div>
 
               {/* 카테고리 태그 */}
@@ -923,8 +925,8 @@ export default function TreatmentDetailPage() {
                 <h3 className="text-lg font-bold mb-3">진료 시간</h3>
                 <div className="space-y-2 text-gray-600">
                   <div className="flex justify-between">
-                    <span>평일</span>
-                    <span>{hospital?.business_hours}</span>
+                    
+                    <span className="whitespace-pre-wrap">{hospital?.business_hours}</span>
                   </div>
                 </div>
               </div>
