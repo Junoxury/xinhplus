@@ -72,71 +72,32 @@ export default function TreatmentPage() {
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(true)
   const [totalCount, setTotalCount] = useState(0)
-  const [filters, setFilters] = useState<TreatmentFilters>({
-    sort_by: 'view_count'
-  })
   const ITEMS_PER_PAGE = 6
-
-  // 카테고리 데이터를 위한 상태 추가
-  const [bodyPartsData, setBodyPartsData] = useState({ categories: [], subCategories: [] })
-  const [treatmentMethodsData, setTreatmentMethodsData] = useState({ categories: [], subCategories: [] })
-
   const searchParams = useSearchParams()
   
-  // URL에서 depth2 파라미터 가져오기
-  useEffect(() => {
+  // filters 초기값 설정을 URL 파라미터를 포함하도록 수정
+  const [filters, setFilters] = useState<TreatmentFilters>(() => {
     const depth2Id = searchParams.get('depth2')
-    if (!depth2Id) return
-    
-    // 카테고리 데이터가 로드되기 전에는 실행하지 않음
-    if (bodyPartsData.categories.length === 0 || treatmentMethodsData.categories.length === 0) return
-    
-    const numericDepth2Id = Number(depth2Id)
-    
-    // depth2Id가 bodyParts에 속하는지 treatmentMethods에 속하는지 확인
-    const isBodyPart = bodyPartsData.categories.some(
-      category => category.id === numericDepth2Id
-    )
-    
-    const isTreatmentMethod = treatmentMethodsData.categories.some(
-      category => category.id === numericDepth2Id
-    )
-    
-    // 필터 업데이트
-    if (isBodyPart || isTreatmentMethod) {
-      setFilters(prev => ({
-        ...prev,
-        depth2_category_id: numericDepth2Id
-      }))
-      
-      // CategorySection의 initialSelection 업데이트
-      setCategorySelection({
-        bodyPartId: isBodyPart ? numericDepth2Id : null,
-        treatmentId: isTreatmentMethod ? numericDepth2Id : null,
-        bodyPartSubId: null,
-        treatmentSubId: null
-      })
+    return {
+      sort_by: 'view_count',
+      depth2_category_id: depth2Id ? Number(depth2Id) : null
     }
-  }, [searchParams, bodyPartsData.categories, treatmentMethodsData.categories])
+  })
 
-  // CategorySection의 initialSelection을 위한 상태 추가
+  // CategorySection의 initialSelection도 URL 파라미터 기반으로 초기화
   const [categorySelection, setCategorySelection] = useState(() => {
     const depth2Id = searchParams.get('depth2')
-    if (!depth2Id) return {
+    return {
       bodyPartId: null,
       treatmentId: null,
       bodyPartSubId: null,
       treatmentSubId: null
     }
-
-    const numericDepth2Id = Number(depth2Id)
-    return {
-      bodyPartId: null,  // 초기에는 null로 설정, 카테고리 로드 후 업데이트
-      treatmentId: null,
-      bodyPartSubId: null,
-      treatmentSubId: null
-    }
   })
+
+  // 카테고리 데이터를 위한 상태 추가
+  const [bodyPartsData, setBodyPartsData] = useState({ categories: [], subCategories: [] })
+  const [treatmentMethodsData, setTreatmentMethodsData] = useState({ categories: [], subCategories: [] })
 
   // 카테고리 데이터 로드
   useEffect(() => {
@@ -177,6 +138,39 @@ export default function TreatmentPage() {
 
     fetchCategories()
   }, [])
+
+  // 카테고리 데이터 로드 후 카테고리 선택 상태 업데이트
+  useEffect(() => {
+    const depth2Id = searchParams.get('depth2')
+    if (!depth2Id) return
+    
+    if (bodyPartsData.categories.length === 0 && treatmentMethodsData.categories.length === 0) return
+    
+    const numericDepth2Id = Number(depth2Id)
+    
+    const isBodyPart = bodyPartsData.categories.some(
+      category => category.id === numericDepth2Id
+    )
+    
+    const isTreatmentMethod = treatmentMethodsData.categories.some(
+      category => category.id === numericDepth2Id
+    )
+    
+    // CategorySection의 선택 상태만 업데이트
+    setCategorySelection({
+      bodyPartId: isBodyPart ? numericDepth2Id : null,
+      treatmentId: isTreatmentMethod ? numericDepth2Id : null,
+      bodyPartSubId: null,
+      treatmentSubId: null
+    })
+  }, [searchParams, bodyPartsData.categories, treatmentMethodsData.categories])
+
+  // 단일 useEffect로 데이터 fetch
+  useEffect(() => {
+    console.log('Fetching treatments with filters:', filters)
+    setPage(1)
+    fetchTreatments(1, filters, false)
+  }, [filters])
 
   // 시술 데이터 fetch 함수
   const fetchTreatments = async (page: number, filters: TreatmentFilters, isLoadMore: boolean = false) => {
@@ -257,28 +251,6 @@ export default function TreatmentPage() {
       setLoading(false)
     }
   }
-
-  // 필터 변경시 데이터 새로 fetch
-  useEffect(() => {
-    console.log('Filters changed, fetching with:', {
-      ...filters,
-      depth2_id: filters.depth2_category_id,
-      depth3_id: filters.depth3_category_id
-    })
-    
-    setPage(1)
-    fetchTreatments(1, filters, false)
-  }, [
-    filters.depth2_category_id, 
-    filters.depth3_category_id,
-    filters.city_id,
-    filters.is_recommended,
-    filters.is_discounted,
-    filters.is_advertised,
-    filters.price_from,
-    filters.price_to,
-    filters.sort_by
-  ])
 
   const handleLoadMore = async () => {
     if (!loading && hasMore) {
