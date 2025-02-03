@@ -1,6 +1,3 @@
--- 기존 함수 삭제
-DROP FUNCTION IF EXISTS get_reviews;
-
 -- 새로운 함수 생성
 CREATE OR REPLACE FUNCTION get_reviews(
   p_treatment_id BIGINT DEFAULT NULL,
@@ -19,10 +16,7 @@ CREATE OR REPLACE FUNCTION get_reviews(
   p_limit INT DEFAULT 10,
   p_offset INT DEFAULT 0,
   p_min_price BIGINT DEFAULT 0,
-  p_max_price BIGINT DEFAULT 100000000,
-  p_is_verified BOOLEAN DEFAULT NULL,
-  p_status VARCHAR DEFAULT NULL,
-  p_is_google BOOLEAN DEFAULT NULL
+  p_max_price BIGINT DEFAULT 100000000
 ) RETURNS TABLE (
   id BIGINT,
   title VARCHAR,
@@ -45,13 +39,10 @@ CREATE OR REPLACE FUNCTION get_reviews(
   categories JSONB,
   is_best BOOLEAN,
   is_google BOOLEAN,
-  is_verified BOOLEAN,
-  status VARCHAR,
   total_count BIGINT,
   has_more BOOLEAN
 ) LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
 AS $$
 BEGIN
   RETURN QUERY
@@ -72,9 +63,6 @@ BEGIN
     AND (NOT p_is_ad OR t.is_advertised = true)
     AND (p_depth2_id IS NULL OR tc.depth2_category_id = p_depth2_id)
     AND (p_depth3_id IS NULL OR tc.depth3_category_id = p_depth3_id)
-    AND (p_is_verified IS NULL OR r.is_verified = p_is_verified)
-    AND (p_status IS NULL OR r.status = p_status)
-    AND (p_is_google IS NULL OR r.is_google = p_is_google)
     ORDER BY r.id, r.created_at DESC
   ),
   treatment_categories_json AS (
@@ -170,8 +158,6 @@ BEGIN
     tcj.categories,
     r.is_best,
     r.is_google,
-    r.is_verified,
-    r.status,
     tc.total as total_count,
     hmc.has_more
   FROM (
@@ -195,9 +181,6 @@ BEGIN
     END DESC NULLS LAST;
 END;
 $$;
-
--- 실행 권한 부여
-GRANT EXECUTE ON FUNCTION get_reviews TO authenticated;
 
 -- 샘플 쿼리 모음
 COMMENT ON FUNCTION get_reviews IS '

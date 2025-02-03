@@ -346,6 +346,11 @@ export default function HomePage() {
   const [recommendedClinics, setRecommendedClinics] = useState<Hospital[]>([])
   const [latestReviews, setLatestReviews] = useState<Review[]>([])
   const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [topCategories, setTopCategories] = useState<{
+    category_id: number;
+    category_name: string;
+    total_views: number;
+  }[]>([])
 
   // 카테고리 데이터 로드
   useEffect(() => {
@@ -656,6 +661,41 @@ export default function HomePage() {
     checkAuth()
   }, [])
 
+  // TOP5 카테고리 데이터 로드를 위한 useEffect
+  useEffect(() => {
+    const fetchTopCategories = async () => {
+      try {
+        console.log('TOP5 카테고리 데이터 로드 시작');
+        
+        const { data, error } = await supabase.rpc('get_top_categories', {
+          p_limit: 5
+        });
+
+        if (error) {
+          console.error('TOP5 카테고리 RPC 에러:', error);
+          throw error;
+        }
+
+        console.log('받은 데이터:', data);
+        
+        if (!data) {
+          console.error('데이터가 없습니다');
+          return;
+        }
+
+        setTopCategories(data);
+        
+      } catch (error) {
+        console.error('TOP5 카테고리 데이터 로드 실패:', {
+          error,
+          message: error instanceof Error ? error.message : '알 수 없는 에러'
+        });
+      }
+    };
+
+    fetchTopCategories();
+  }, []);
+
   return (
     <main className="min-h-screen">
       <Banner />
@@ -703,9 +743,9 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* 두 번째 영역: 시술 아이콘 (25%) */}
+            {/* 두 번째 영역: 시술 방법 아이콘 (25%) */}
             <div className="flex flex-col w-1/4">
-              <h2 className="text-lg font-bold mb-4">시술</h2>
+              <h2 className="text-lg font-bold mb-4">시술 방법</h2>
               <div className="grid grid-cols-4 gap-2">
                 {treatmentMethodsData.categories.map((method) => (
                   <Link 
@@ -722,16 +762,24 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* 세 번째 영역: TOP 5 (25%) */}
+            {/* 세 번째 영역: 인기 카테고리 TOP 5 (25%) */}
             <div className="flex flex-col w-1/4">
-              <h2 className="text-lg font-bold mb-4">시술 조회수 TOP 5</h2>
+              <h2 className="text-lg font-bold mb-4">인기 카테고리 TOP5</h2>
               <ul className="space-y-2">
-                {popularTreatments.slice(0, 5).map((treatment) => (
-                  <li key={treatment.id} className="flex items-center">
+                {topCategories.map((category, index) => (
+                  <li key={category.category_id} className="flex items-center">
                     <span className="flex items-center justify-center w-8 h-8 bg-purple-600 text-white font-bold rounded-full mr-2">
-                      {popularTreatments.indexOf(treatment) + 1}
+                      {index + 1}
                     </span>
-                    <span className="text-md font-medium">{treatment.title}</span>
+                    <Link 
+                      href={`/treatments?depth2=${category.category_id}`}
+                      className="text-md font-medium hover:text-purple-600"
+                    >
+                      {category.category_name}
+                      <span className="text-sm text-gray-500 ml-1">
+                        ({category.total_views.toLocaleString()}회)
+                      </span>
+                    </Link>
                   </li>
                 ))}
               </ul>

@@ -1,6 +1,5 @@
--- 1. 기존 함수들 모두 삭제
-DROP FUNCTION IF EXISTS get_hospitals_list(bigint,bigint,bigint,bigint,bigint,boolean,boolean,boolean,boolean,int,int,int,text);
-DROP FUNCTION IF EXISTS get_hospitals_list(bigint,bigint,bigint,bigint,bigint,boolean,boolean,boolean,boolean,boolean,int,int,int,text);
+-- 1. 기존 함수 삭제
+DROP FUNCTION IF EXISTS get_hospitals_list(bigint,bigint,bigint,boolean,boolean,boolean,boolean,integer,integer,integer,text);
 
 -- 2. 새 함수 생성
 CREATE OR REPLACE FUNCTION get_hospitals_list(
@@ -12,13 +11,11 @@ CREATE OR REPLACE FUNCTION get_hospitals_list(
     p_is_advertised boolean DEFAULT NULL,
     p_is_recommended boolean DEFAULT NULL,
     p_is_member boolean DEFAULT NULL,
-    p_is_google boolean DEFAULT NULL,  -- 구글 파라미터 추가
     p_has_discount boolean DEFAULT NULL,
     p_page_size int DEFAULT 10,
     p_page int DEFAULT 1,
     p_ad_limit int DEFAULT 2,
-    p_sort_by text DEFAULT 'created',
-    p_search_term text DEFAULT NULL    -- 검색어 파라미터 추가
+    p_sort_by text DEFAULT 'created'
 ) 
 RETURNS TABLE (
     id bigint,
@@ -32,7 +29,6 @@ RETURNS TABLE (
     is_advertised boolean,
     is_recommended boolean,
     is_member boolean,
-    is_google boolean,    -- 추가된 필드
     has_discount boolean,
     view_count bigint,
     like_count bigint,
@@ -56,7 +52,6 @@ BEGIN
     INTO v_total_count
     FROM hospitals h
     WHERE (p_city_id IS NULL OR h.city_id = p_city_id)
-        AND (p_search_term IS NULL OR h.name ILIKE '%' || p_search_term || '%')  -- 검색 조건 추가
         AND (p_depth2_body_category_id IS NULL OR EXISTS (
             SELECT 1 FROM hospital_categories 
             WHERE hospital_id = h.id 
@@ -80,7 +75,6 @@ BEGIN
         AND (p_is_advertised IS NULL OR h.is_advertised = p_is_advertised)
         AND (p_is_recommended IS NULL OR h.is_recommended = p_is_recommended)
         AND (p_is_member IS NULL OR h.is_member = p_is_member)
-        AND (p_is_google IS NULL OR h.is_google = p_is_google)  -- 구글 조건 추가
         AND (p_has_discount IS NULL OR h.has_discount = p_has_discount);
 
     RETURN QUERY
@@ -133,7 +127,6 @@ BEGIN
         LEFT JOIN cities c ON h.city_id = c.id
         LEFT JOIN hospital_categories_grouped hcg ON h.id = hcg.h_id
         WHERE (p_city_id IS NULL OR h.city_id = p_city_id)
-            AND (p_search_term IS NULL OR h.name ILIKE '%' || p_search_term || '%')  -- 검색 조건 추가
             AND (p_depth2_body_category_id IS NULL OR EXISTS (
                 SELECT 1 FROM hospital_categories 
                 WHERE hospital_id = h.id 
@@ -157,7 +150,6 @@ BEGIN
             AND (p_is_advertised IS NULL OR h.is_advertised = p_is_advertised)
             AND (p_is_recommended IS NULL OR h.is_recommended = p_is_recommended)
             AND (p_is_member IS NULL OR h.is_member = p_is_member)
-            AND (p_is_google IS NULL OR h.is_google = p_is_google)  -- 구글 조건 추가
             AND (p_has_discount IS NULL OR h.has_discount = p_has_discount)
     ),
     ranked_results AS (
@@ -197,7 +189,6 @@ BEGIN
         r.is_advertised,
         r.is_recommended,
         r.is_member,
-        r.is_google,    -- 추가된 필드
         r.has_discount,
         r.view_count,
         r.like_count,

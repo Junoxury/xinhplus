@@ -1,0 +1,103 @@
+-- 댓글 작성 및 평점 업데이트 함수
+CREATE OR REPLACE FUNCTION add_review_comment(
+  p_review_id BIGINT,
+  p_user_id UUID,
+  p_content TEXT,
+  p_parent_id BIGINT DEFAULT NULL,
+  p_hospital_id BIGINT DEFAULT NULL,  -- 병원 ID 추가
+  p_treatment_id BIGINT DEFAULT NULL  -- 시술 ID 추가
+) RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER AS $$
+DECLARE
+  v_comment_id BIGINT;
+  v_new_comment JSONB;
+BEGIN
+  -- 댓글 추가
+  INSERT INTO review_comments (
+    review_id, author_id, content, parent_id
+  ) VALUES (
+    p_review_id, p_user_id, p_content, p_parent_id
+  ) RETURNING id INTO v_comment_id;
+
+  -- 리뷰의 댓글 수 증가
+  UPDATE reviews
+  SET comment_count = comment_count + 1
+  WHERE id = p_review_id;
+
+  -- 병원의 댓글 수 증가
+  IF p_hospital_id IS NOT NULL THEN
+    UPDATE hospitals
+    SET comment_count = comment_count + 1
+    WHERE id = p_hospital_id;
+  END IF;
+
+  -- 시술의 댓글 수 증가
+  IF p_treatment_id IS NOT NULL THEN
+    UPDATE treatments
+    SET comment_count = comment_count + 1
+    WHERE id = p_treatment_id;
+  END IF;
+
+  -- 새로 작성된 댓글 정보 반환
+  SELECT jsonb_build_object(
+    'id', rc.id,
+    'content', rc.content,
+    'author_id', rc.author_id,
+    'author_name', (u.raw_user_meta_data->>'full_name'),
+    'author_image', (u.raw_user_meta_data->>'avatar_url'),
+    'created_at', rc.created_at,
+    'parent_id', rc.parent_id
+  )
+  INTO v_new_comment
+  FROM review_comments rc
+  LEFT JOIN auth.users u ON rc.author_id = u.id
+  WHERE rc.id = v_comment_id;
+
+  RETURN v_new_comment;
+END;
+$$;
+
+-- 댓글 삭제 함수
+CREATE OR REPLACE FUNCTION delete_review_comment(
+  p_comment_id BIGINT,
+  p_user_id UUID,
+  p_hospital_id BIGINT DEFAULT NULL,  -- 병원 ID 추가
+  p_treatment_id BIGINT DEFAULT NULL  -- 시술 ID 추가
+) RETURNS BOOLEAN LANGUAGE plpgsql SECURITY DEFINER AS $$
+DECLARE
+  v_review_id BIGINT;
+BEGIN
+  -- 삭제할 댓글의 review_id 저장
+  SELECT review_id INTO v_review_id
+  FROM review_comments
+  WHERE id = p_comment_id AND author_id = p_user_id;
+
+  -- 자신의 댓글만 삭제
+  DELETE FROM review_comments
+  WHERE id = p_comment_id AND author_id = p_user_id;
+  
+  IF FOUND THEN
+    -- 리뷰의 댓글 수 감소
+    UPDATE reviews
+    SET comment_count = comment_count - 1
+    WHERE id = v_review_id;
+
+    -- 병원의 댓글 수 감소
+    IF p_hospital_id IS NOT NULL THEN
+      UPDATE hospitals
+      SET comment_count = comment_count - 1
+      WHERE id = p_hospital_id;
+    END IF;
+
+    -- 시술의 댓글 수 감소
+    IF p_treatment_id IS NOT NULL THEN
+      UPDATE treatments
+      SET comment_count = comment_count - 1
+      WHERE id = p_treatment_id;
+    END IF;
+    
+    RETURN TRUE;
+  END IF;
+  
+  RETURN FALSE;
+END;
+$$;

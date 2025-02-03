@@ -21,9 +21,7 @@ CREATE TABLE hospitals (
     is_recommended boolean DEFAULT false,   
     is_member boolean DEFAULT false,        
     created_at timestamptz DEFAULT now(),
-    updated_at timestamptz DEFAULT now(),
-    google_map_url varchar(500),
-    is_google boolean DEFAULT false
+    updated_at timestamptz DEFAULT now()
 );
 
 CREATE TABLE hospital_categories (
@@ -59,10 +57,8 @@ CREATE INDEX idx_hospital_categories_hospital ON hospital_categories(hospital_id
 CREATE INDEX idx_hospital_categories_depth2 ON hospital_categories(depth2_category_id);
 CREATE INDEX idx_hospital_categories_depth3 ON hospital_categories(depth3_category_id);
 CREATE INDEX idx_hospitals_comment_count ON hospitals (comment_count DESC);
-CREATE INDEX idx_hospitals_google ON hospitals(is_google);
 
--- is_google에 대한 인덱스 생성
-CREATE INDEX idx_hospitals_google ON hospitals(is_google);
+
 
 ----- 샘플 데이터 -----
 INSERT INTO hospitals (
@@ -356,13 +352,3 @@ INSERT INTO hospital_categories (hospital_id, depth2_category_id, depth3_categor
 (9, 5, 25),  -- 피부 - 흉터
 (10, 3, 16), -- 눈 - 쌍거풀 부분절개
 (10, 7, 29); -- 광대 - 광대 윤곽
-
--- 기존 샘플 데이터에도 google_map_url 추가
-UPDATE hospitals
-SET google_map_url = 'https://maps.google.com/?q=' || latitude || ',' || longitude
-WHERE google_map_url IS NULL;
-
--- 기존 데이터 업데이트 (예시로 일부 병원을 구글 등록 병원으로 설정)
-UPDATE hospitals 
-SET is_google = true 
-WHERE id IN (1, 3, 5, 7, 9);  -- 임의로 몇 개의 병원을 구글 등록 병원으로 설정

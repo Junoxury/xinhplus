@@ -21,8 +21,7 @@ CREATE OR REPLACE FUNCTION get_treatments(
     p_price_to decimal DEFAULT NULL,
     p_sort_by text DEFAULT 'view_count',  -- 'view_count', 'like_count', 'rating', 'discount_price_asc', 'discount_price_desc'
     p_limit integer DEFAULT 10,
-    p_offset integer DEFAULT 0,
-    p_search_term text DEFAULT NULL    -- 검색어 파라미터 추가
+    p_offset integer DEFAULT 0
 ) 
 RETURNS TABLE (
     id bigint,
@@ -60,7 +59,6 @@ BEGIN
         FROM treatments t
         WHERE 
             (p_hospital_id IS NULL OR t.hospital_id = p_hospital_id)
-            AND (p_search_term IS NULL OR t.title ILIKE '%' || p_search_term || '%')  -- 검색 조건 추가
             AND (p_depth2_category_id IS NULL OR EXISTS (
                 SELECT 1 FROM treatment_categories tc 
                 WHERE tc.treatment_id = t.id 
