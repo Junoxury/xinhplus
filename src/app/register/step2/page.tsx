@@ -3,16 +3,36 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Calendar } from "@/components/ui/calendar"
+import { format } from "date-fns"
+import { Calendar as CalendarIcon } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 
 export default function RegisterStep2() {
   const router = useRouter()
   const [formData, setFormData] = useState({
     gender: '',
-    phone: ''
+    phone: '',
+    birthYear: '',
+    birthMonth: '',
+    birthDay: ''
   })
   const [errors, setErrors] = useState({
     gender: '',
-    phone: ''
+    phone: '',
+    birthDate: ''
   })
   const [isLoading, setIsLoading] = useState(false)
   const [uuid, setUuid] = useState<string | null>(null)
@@ -32,12 +52,35 @@ export default function RegisterStep2() {
     return phoneRegex.test(phone)
   }
 
-  // 폼 유효성 검사
+  // 년도 옵션 생성 (1900년부터 현재년도까지)
+  const currentYear = new Date().getFullYear()
+  const years = Array.from({ length: currentYear - 1900 + 1 }, (_, i) => currentYear - i)
+  
+  // 월 옵션
+  const months = Array.from({ length: 12 }, (_, i) => i + 1)
+  
+  // 일 옵션 생성 (선택된 년/월에 따라 동적으로 계산)
+  const getDaysInMonth = (year: string, month: string) => {
+    if (!year || !month) return Array.from({ length: 31 }, (_, i) => i + 1)
+    const daysInMonth = new Date(parseInt(year), parseInt(month), 0).getDate()
+    return Array.from({ length: daysInMonth }, (_, i) => i + 1)
+  }
+
+  const days = getDaysInMonth(formData.birthYear, formData.birthMonth)
+
+  // 생년월일 유효성 검사
+  const isBirthDateValid = () => {
+    return formData.birthYear && formData.birthMonth && formData.birthDay
+  }
+
+  // 폼 유효성 검사 수정
   const isFormValid = () => {
     return formData.gender !== '' && 
            validateVietnamesePhone(formData.phone) &&
+           isBirthDateValid() &&
            !errors.gender && 
-           !errors.phone
+           !errors.phone &&
+           !errors.birthDate
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -49,21 +92,21 @@ export default function RegisterStep2() {
 
     setIsLoading(true)
     try {
-      // user_profiles 테이블에 데이터 삽입
       const { error: profileError } = await supabase
         .from('user_profiles')
         .upsert({
           id: uuid,
           gender: formData.gender,
           phone: formData.phone,
+          birth_year: formData.birthYear,
+          birth_month: formData.birthMonth,
+          birth_day: formData.birthDay,
           is_active: true
         }, {
           onConflict: 'id'
         })
 
       if (profileError) throw profileError
-
-      // 성공시 다음 단계로 이동
       router.push('/register/step3')
     } catch (error) {
       console.error('Error:', error)
@@ -88,6 +131,9 @@ export default function RegisterStep2() {
         <div className="bg-white p-8 rounded-2xl shadow-sm border border-pink-100">
           <form className="space-y-8" onSubmit={handleSubmit}>
             <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                성별
+              </label>
               <div className="grid grid-cols-2 gap-4">
                 <button
                   type="button"
@@ -128,6 +174,82 @@ export default function RegisterStep2() {
             </div>
 
             <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                생년월일
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                <Select
+                  value={formData.birthYear}
+                  onValueChange={(value) => 
+                    setFormData(prev => ({ ...prev, birthYear: value }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="년도" />
+                  </SelectTrigger>
+                  <SelectContent position="popper" sideOffset={-5} className="max-h-[200px] overflow-y-auto">
+                    {years.map((year) => (
+                      <SelectItem key={year} value={year.toString()}>
+                        {year}년
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select
+                  value={formData.birthMonth}
+                  onValueChange={(value) => 
+                    setFormData(prev => ({ ...prev, birthMonth: value }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="월" />
+                  </SelectTrigger>
+                  <SelectContent 
+                    position="popper" 
+                    sideOffset={-5} 
+                    className="max-h-[180px] overflow-y-auto"
+                  >
+                    {months.map((month) => (
+                      <SelectItem key={month} value={month.toString()}>
+                        {month}월
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select
+                  value={formData.birthDay}
+                  onValueChange={(value) => 
+                    setFormData(prev => ({ ...prev, birthDay: value }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="일" />
+                  </SelectTrigger>
+                  <SelectContent 
+                    position="popper" 
+                    sideOffset={-5} 
+                    align="center"
+                    className="max-h-[180px] overflow-y-auto"
+                  >
+                    {days.map((day) => (
+                      <SelectItem key={day} value={day.toString()}>
+                        {day}일
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {errors.birthDate && (
+                <p className="text-red-500 text-xs">{errors.birthDate}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                전화번호
+              </label>
               <input
                 type="tel"
                 value={formData.phone}
