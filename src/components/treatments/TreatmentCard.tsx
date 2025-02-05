@@ -3,6 +3,7 @@ import { Heart, MapPin, Star } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { formatPrice } from '@/utils/format'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 
 interface TreatmentCardProps {
   id: number
@@ -27,6 +28,7 @@ interface TreatmentCardProps {
   is_advertised: boolean
   is_recommended: boolean
   disableLink?: boolean
+  is_liked?: boolean
 }
 
 export function TreatmentCard({
@@ -44,8 +46,17 @@ export function TreatmentCard({
   categories,
   is_advertised,
   is_recommended,
-  disableLink
+  disableLink,
+  is_liked = false
 }: TreatmentCardProps) {
+  const router = useRouter()
+
+  const handleLikeClick = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    router.push('/login')
+  }
+
   const CardContent = () => (
     <div className="w-full overflow-x-hidden">
       <div className="rounded-2xl overflow-hidden bg-white">
@@ -73,9 +84,18 @@ export function TreatmentCard({
                 </div>
               )}
             </div>
-            {/* Bookmark button - div로 변경 */}
-            <div className="absolute top-2 right-2 md:p-2 p-1 md:bg-white/80 bg-transparent backdrop-blur-sm rounded-full">
-              <Heart className="md:w-5 md:h-5 w-4 h-4" />
+            {/* Bookmark button 수정 */}
+            <div 
+              onClick={handleLikeClick}
+              className="absolute top-2 right-2 md:p-2 p-1 md:bg-white/80 bg-transparent backdrop-blur-sm rounded-full cursor-pointer hover:bg-white/90"
+            >
+              <Heart 
+                className={`w-4 h-4 ${
+                  is_liked 
+                    ? 'fill-current text-red-500' 
+                    : 'text-gray-500'
+                }`}
+              />
             </div>
           </div>
 

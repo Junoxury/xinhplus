@@ -456,43 +456,47 @@ export default function TreatmentDetailPage() {
   }, [])
 
   // 병원의 다른 시술 가져오기
-  useEffect(() => {
-    const fetchOtherTreatments = async () => {
-      if (!treatment?.hospital_id) return
+  const fetchOtherTreatments = async () => {
+    if (!treatment?.hospital_id) return
 
-      try {
-        const { data, error } = await supabase
-          .rpc('get_treatments', { 
-            p_city_id: null,
-            p_depth2_category_id: null,
-            p_depth3_category_id: null,
-            p_hospital_id: treatment.hospital_id,
-            p_is_advertised: null,
-            p_is_discounted: null,
-            p_is_recommended: null,
-            p_limit: 3,
-            p_offset: 0,
-            p_price_from: null,
-            p_price_to: null,
-            p_sort_by: 'view_count'
-          })
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      const { data, error } = await supabase
+        .rpc('get_treatments', { 
+          p_city_id: null,
+          p_depth2_category_id: null,
+          p_depth3_category_id: null,
+          p_hospital_id: treatment.hospital_id,
+          p_is_advertised: null,
+          p_is_discounted: null,
+          p_is_recommended: null,
+          p_limit: 3,
+          p_offset: 0,
+          p_price_from: null,
+          p_price_to: null,
+          p_sort_by: 'view_count',
+          p_search_term: null,
+          p_user_id: user?.id || null
+        })
 
-        if (error) {
-          console.error('Error fetching other treatments:', error)
-          return
-        }
-
-        if (data) {
-          setOtherTreatments(
-            (data as Treatment[]).filter(t => t.id !== treatment.id)
-          )
-        }
-
-      } catch (error) {
-        console.error('Error in fetchOtherTreatments:', error)
+      if (error) {
+        console.error('Error fetching other treatments:', error)
+        return
       }
-    }
 
+      if (data) {
+        setOtherTreatments(
+          (data as Treatment[]).filter(t => t.id !== treatment.id)
+        )
+      }
+
+    } catch (error) {
+      console.error('Error in fetchOtherTreatments:', error)
+    }
+  }
+
+  useEffect(() => {
     fetchOtherTreatments()
   }, [treatment?.hospital_id])
 
@@ -504,43 +508,47 @@ export default function TreatmentDetailPage() {
   }, [treatment])
 
   // 비슷한 시술 가져오기
-  useEffect(() => {
-    const fetchSimilarTreatments = async () => {
-      if (!selectedDepth2Id) return
+  const fetchSimilarTreatments = async () => {
+    if (!selectedDepth2Id) return
 
-      try {
-        const { data, error } = await supabase
-          .rpc('get_treatments', { 
-            p_city_id: null,
-            p_depth2_category_id: selectedDepth2Id,
-            p_depth3_category_id: null,
-            p_hospital_id: null,
-            p_is_advertised: null,
-            p_is_discounted: null,
-            p_is_recommended: null,
-            p_limit: 5,
-            p_offset: 0,
-            p_price_from: null,
-            p_price_to: null,
-            p_sort_by: 'view_count'
-          })
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      const { data, error } = await supabase
+        .rpc('get_treatments', { 
+          p_city_id: null,
+          p_depth2_category_id: selectedDepth2Id,
+          p_depth3_category_id: null,
+          p_hospital_id: null,
+          p_is_advertised: null,
+          p_is_discounted: null,
+          p_is_recommended: null,
+          p_limit: 5,
+          p_offset: 0,
+          p_price_from: null,
+          p_price_to: null,
+          p_sort_by: 'view_count',
+          p_search_term: null,
+          p_user_id: user?.id || null
+        })
 
-        if (error) {
-          console.error('Error fetching similar treatments:', error)
-          return
-        }
-
-        if (data) {
-          setSimilarTreatments(
-            (data as Treatment[]).filter(t => t.id !== treatment?.id)
-          )
-        }
-
-      } catch (error) {
-        console.error('Error in fetchSimilarTreatments:', error)
+      if (error) {
+        console.error('Error fetching similar treatments:', error)
+        return
       }
-    }
 
+      if (data) {
+        setSimilarTreatments(
+          (data as Treatment[]).filter(t => t.id !== treatment?.id)
+        )
+      }
+
+    } catch (error) {
+      console.error('Error in fetchSimilarTreatments:', error)
+    }
+  }
+
+  useEffect(() => {
     fetchSimilarTreatments()
   }, [selectedDepth2Id, treatment?.id])
 

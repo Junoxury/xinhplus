@@ -5,10 +5,12 @@ CREATE TYPE treatment_category_group AS (
     depth3_list jsonb
 );
 */
--- 특정 파라미터 조합의 함수 삭제
+-- 기존 함수들 삭제
 DROP FUNCTION IF EXISTS get_treatments(bigint, bigint, bigint, boolean, boolean, bigint, boolean, decimal, decimal, text, integer, integer);
+DROP FUNCTION IF EXISTS get_treatments(bigint, bigint, bigint, boolean, boolean, bigint, boolean, decimal, decimal, text, integer, integer, text);
+DROP FUNCTION IF EXISTS get_treatments(bigint, bigint, bigint, boolean, boolean, bigint, boolean, decimal, decimal, text, integer, integer, text, uuid);
 
-
+-- 새로운 함수 생성
 CREATE OR REPLACE FUNCTION get_treatments(
     p_hospital_id bigint DEFAULT NULL,
     p_depth2_category_id bigint DEFAULT NULL,
@@ -22,7 +24,8 @@ CREATE OR REPLACE FUNCTION get_treatments(
     p_sort_by text DEFAULT 'view_count',  -- 'view_count', 'like_count', 'rating', 'discount_price_asc', 'discount_price_desc'
     p_limit integer DEFAULT 10,
     p_offset integer DEFAULT 0,
-    p_search_term text DEFAULT NULL    -- 검색어 파라미터 추가
+    p_search_term text DEFAULT NULL,    -- 검색어 파라미터 추가
+    p_user_id uuid DEFAULT NULL  -- 사용자 ID 파라미터 추가
 ) 
 RETURNS TABLE (
     id bigint,
@@ -50,6 +53,7 @@ RETURNS TABLE (
     categories jsonb,
     created_at timestamptz,
     updated_at timestamptz,
+    is_liked boolean,  -- 좋아요 여부 컬럼 추가
     total_count bigint,
     has_next boolean
 ) AS $$
@@ -164,6 +168,16 @@ BEGIN
         tcg.categories,
         t.created_at,
         t.updated_at,
+        CASE 
+            WHEN p_user_id IS NULL THEN false
+            WHEN EXISTS (
+                SELECT 1 
+                FROM treatment_likes tl 
+                WHERE tl.treatment_id = t.id 
+                AND tl.user_id = p_user_id
+            ) THEN true
+            ELSE false
+        END as is_liked,
         tc.count as total_count,
         EXISTS (
             SELECT 1 FROM ordered_treatments 

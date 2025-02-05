@@ -42,6 +42,7 @@ interface Treatment {
   }[]
   created_at: string
   updated_at: string
+  is_liked: boolean
 }
 
 // 필터 타입 정의 수정
@@ -187,6 +188,10 @@ export default function TreatmentPage() {
     try {
       setLoading(true)
       
+      // 현재 로그인한 사용자 정보 가져오기
+      const { data: { user } } = await supabase.auth.getUser()
+      console.log('🔑 Current user:', user?.id || 'Not logged in')
+      
       const rpcParams = {
         p_hospital_id: filters.hospital_id ?? null,
         p_depth2_category_id: filters.depth2_category_id ?? null,
@@ -199,17 +204,26 @@ export default function TreatmentPage() {
         p_price_to: filters.price_to,
         p_sort_by: filters.sort_by ?? 'view_count',
         p_limit: ITEMS_PER_PAGE,
-        p_offset: (page - 1) * ITEMS_PER_PAGE
+        p_offset: (page - 1) * ITEMS_PER_PAGE,
+        p_user_id: user?.id || null
       }
       
-      console.log('Calling RPC with params:', rpcParams)
+      console.log('📡 RPC Parameters:', JSON.stringify(rpcParams, null, 2))
 
       const { data, error } = await supabase.rpc('get_treatments', rpcParams)
 
       if (error) {
-        console.error('Supabase RPC Error:', error)
+        console.error('❌ Supabase RPC Error:', error)
         throw error
       }
+
+      console.log('✅ RPC Response:', {
+        totalCount: data?.[0]?.total_count || 0,
+        hasNext: data?.[0]?.has_next || false,
+        itemCount: data?.length || 0,
+        firstItem: data?.[0] || null,
+        isLikedSample: data?.[0]?.is_liked
+      })
 
       // 데이터가 있는 경우
       if (data && data.length > 0) {
@@ -230,7 +244,8 @@ export default function TreatmentPage() {
           categories: item.categories || [],
           is_advertised: Boolean(item.is_advertised),
           is_recommended: Boolean(item.is_recommended),
-          disableLink: true
+          disableLink: true,
+          is_liked: item.is_liked
         }))
 
         // 더보기인 경우 기존 데이터에 추가
@@ -251,7 +266,7 @@ export default function TreatmentPage() {
       }
 
     } catch (error) {
-      console.error('Error fetching treatments:', error)
+      console.error('❌ Error in fetchTreatments:', error)
       if (!isLoadMore) {
         setTreatments([])
       }
@@ -415,7 +430,11 @@ export default function TreatmentPage() {
                   href={`/treatments/detail?id=${treatment.id}`}
                   className="block"
                 >
-                  <TreatmentCard {...treatment} disableLink />
+                  <TreatmentCard 
+                    {...treatment} 
+                    disableLink 
+                    is_liked={treatment.is_liked}
+                  />
                 </Link>
               )}
             />
@@ -439,7 +458,11 @@ export default function TreatmentPage() {
                 href={`/treatments/detail?id=${treatment.id}`}
                 className="block"
               >
-                <TreatmentCard {...treatment} disableLink />
+                <TreatmentCard 
+                  {...treatment} 
+                  disableLink 
+                  is_liked={treatment.is_liked}
+                />
               </Link>
             )}
           />

@@ -29,6 +29,7 @@ interface PopularTreatment {
   likes: number;
   isAd: boolean;
   isNew: boolean;
+  is_liked: boolean;
 }
 
 // 도시 타입 정의 추가
@@ -396,11 +397,16 @@ export default function HomePage() {
   useEffect(() => {
     const fetchPopularTreatments = async () => {
       try {
+        // 현재 로그인한 사용자 정보 가져오기
+        const { data: { user } } = await supabase.auth.getUser()
+
         const { data, error } = await supabase.rpc('get_treatments', {
           p_is_advertised: true,
           p_sort_by: 'view_count',
           p_limit: 8,
-          p_offset: 0
+          p_offset: 0,
+          p_search_term: null,
+          p_user_id: user?.id || null  // 사용자 ID 추가
         })
 
         if (error) throw error
@@ -420,7 +426,8 @@ export default function HomePage() {
           comment_count: item.comment_count,
           categories: item.categories || [],
           is_advertised: item.is_advertised,
-          is_recommended: item.is_recommended
+          is_recommended: item.is_recommended,
+          is_liked: item.is_liked  // 좋아요 상태 추가
         }))
 
         setPopularTreatments(formattedTreatments)
@@ -457,11 +464,20 @@ export default function HomePage() {
   // 로그인한 사용자의 city_id 가져오기
   useEffect(() => {
     const getUserCity = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      
-      if (user?.user_metadata?.city_id) {
-        // 사용자의 city_id로 location 설정
-        setSelectedLocation(user.user_metadata.city_id)
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        console.log('🏙️ User metadata:', user?.user_metadata)  // 디버깅용
+        
+        if (user?.user_metadata?.city_id) {
+          const cityId = Number(user.user_metadata.city_id)  // 숫자로 변환
+          console.log('🌆 Setting selected location to:', cityId)
+          setSelectedLocation(cityId)
+        } else {
+          console.log('🏘️ No city_id found in user metadata')
+          setSelectedLocation(null)
+        }
+      } catch (error) {
+        console.error('Error getting user city:', error)
       }
     }
 
@@ -469,9 +485,14 @@ export default function HomePage() {
 
     // 로그인 상태 변경 감지
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      console.log('👤 Auth state changed. User metadata:', session?.user?.user_metadata)
+      
       if (session?.user?.user_metadata?.city_id) {
-        setSelectedLocation(session.user.user_metadata.city_id)
+        const cityId = Number(session.user.user_metadata.city_id)  // 숫자로 변환
+        console.log('🌆 Setting selected location from auth change to:', cityId)
+        setSelectedLocation(cityId)
       } else {
+        console.log('🏘️ No city_id found in session metadata')
         setSelectedLocation(null)
       }
     })
@@ -484,13 +505,18 @@ export default function HomePage() {
   // 지역별 인기 시술 데이터 로드
   useEffect(() => {
     const fetchLocalTreatments = async () => {
-      if (selectedLocation === null) return // 선택된 도시가 없으면 리턴
+      if (selectedLocation === null) return
 
       try {
+        // 현재 로그인한 사용자 정보 가져오기
+        const { data: { user } } = await supabase.auth.getUser()
+
         const { data, error } = await supabase.rpc('get_treatments', {
           p_city_id: selectedLocation,
           p_limit: 8,
-          p_offset: 0
+          p_offset: 0,
+          p_search_term: null,
+          p_user_id: user?.id || null  // 사용자 ID 추가
         })
 
         if (error) throw error
@@ -509,7 +535,8 @@ export default function HomePage() {
           comment_count: item.comment_count,
           categories: item.categories || [],
           is_advertised: item.is_advertised,
-          is_recommended: item.is_recommended
+          is_recommended: item.is_recommended,
+          is_liked: item.is_liked  // 좋아요 상태 추가
         }))
 
         setLocalPopularTreatments(prev => ({
@@ -869,7 +896,9 @@ export default function HomePage() {
                     key={city.id}
                     variant={selectedLocation === city.id ? 'default' : 'outline'}
                     onClick={() => setSelectedLocation(city.id)}
-                    className="min-w-[70px] h-8 text-sm"
+                    className={`min-w-[70px] h-8 text-sm ${
+                      selectedLocation === city.id ? 'bg-pink-500 hover:bg-pink-600' : ''
+                    }`}
                     disabled={!isAuthenticated}
                   >
                     {city.name_vi}
