@@ -72,6 +72,7 @@ export default function TreatmentPage() {
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(true)
   const [totalCount, setTotalCount] = useState(0)
+  const [showMobileFilter, setShowMobileFilter] = useState(false)
   const ITEMS_PER_PAGE = 6
   const searchParams = useSearchParams()
   
@@ -156,14 +157,23 @@ export default function TreatmentPage() {
       category => category.id === numericDepth2Id
     )
     
-    // CategorySection의 선택 상태만 업데이트
+    // CategorySection의 선택 상태 업데이트
     setCategorySelection({
       bodyPartId: isBodyPart ? numericDepth2Id : null,
       treatmentId: isTreatmentMethod ? numericDepth2Id : null,
       bodyPartSubId: null,
       treatmentSubId: null
     })
-  }, [searchParams, bodyPartsData.categories, treatmentMethodsData.categories])
+
+    // 모바일 필터에서 선택 상태 업데이트
+    if (showMobileFilter) {
+      setCategorySelection(prev => ({
+        ...prev,
+        bodyPartId: isBodyPart ? numericDepth2Id : prev.bodyPartId,
+        treatmentId: isTreatmentMethod ? numericDepth2Id : prev.treatmentId,
+      }))
+    }
+  }, [searchParams, bodyPartsData.categories, treatmentMethodsData.categories, showMobileFilter])
 
   // 단일 useEffect로 데이터 fetch
   useEffect(() => {
@@ -329,8 +339,6 @@ export default function TreatmentPage() {
       treatmentSubId: !isBodyPart ? subCategoryId : null
     }))
   }
-
-  const [showMobileFilter, setShowMobileFilter] = useState(false)
 
   const toggleMobileFilter = (show: boolean) => {
     if (show) {

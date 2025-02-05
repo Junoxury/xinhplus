@@ -49,8 +49,10 @@ export function CategorySection({
   const startX = useRef(0)
   const scrollLeft = useRef(0)
 
-  // 모바일용 상태와 핸들러
-  const [selectedMobileCategory, setSelectedMobileCategory] = useState<number | null>(null)
+  // 모바일용 상태 초기화를 initialSelection과 연동
+  const [selectedMobileCategory, setSelectedMobileCategory] = useState<number | null>(
+    initialSelection?.bodyPartId ?? initialSelection?.treatmentId ?? null
+  )
 
   // 초기 서브카테고리 상태 설정
   const [selectedBodyPartSub, setSelectedBodyPartSub] = useState<SubCategory | null>(
@@ -79,6 +81,11 @@ export function CategorySection({
         : null
     )
   }, [initialSelection, bodyPartSubs, treatmentMethodSubs])
+
+  // initialSelection이 변경될 때마다 모바일 선택 상태도 업데이트
+  useEffect(() => {
+    setSelectedMobileCategory(initialSelection?.bodyPartId ?? initialSelection?.treatmentId ?? null)
+  }, [initialSelection])
 
   const onMouseDown = (e: MouseEvent) => {
     isDown.current = true
