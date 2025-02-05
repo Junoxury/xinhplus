@@ -769,18 +769,31 @@ export default function TreatmentDetailPage() {
                   sizes="(max-width: 768px) 100vw, 33vw"
                 />
                 {/* 배지 */}
-                <div className="absolute top-2 left-2 flex gap-2">
+                <div className="absolute top-2 left-2 flex gap-1">
                   {hospital?.is_advertised && (
-                    <span className="px-2 py-1 bg-yellow-500 text-white text-xs font-medium rounded">
+                    <span className="px-2 py-1 bg-black/60 text-white text-xs font-medium rounded backdrop-blur-sm">
                       AD
                     </span>
                   )}
+                  {hospital?.is_recommended && (
+                    <span className="px-2 py-1 bg-black/60 text-white text-xs font-medium rounded backdrop-blur-sm">
+                      추천
+                    </span>
+                  )}
                   {hospital?.is_member && (
-                    <span className="px-2 py-1 bg-blue-500 text-white text-xs font-medium rounded">
+                    <span className="px-2 py-1 bg-black/60 text-white text-xs font-medium rounded backdrop-blur-sm">
                       Member
                     </span>
                   )}
                 </div>
+                {/* Google 배지 */}
+                {hospital?.is_google && (
+                  <div className="absolute bottom-2 right-2">
+                    <span className="px-2 py-1 bg-black/60 text-white text-xs font-medium rounded backdrop-blur-sm">
+                      By Google
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
 

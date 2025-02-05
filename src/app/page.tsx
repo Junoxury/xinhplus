@@ -793,18 +793,21 @@ export default function HomePage() {
         <div className="container">
           <div className="-mx-4 px-4 overflow-hidden">
             <div className="animate-scrollText whitespace-nowrap flex gap-6">
-              {[...topSearches, ...topSearches].map((item, index) => {
-                const [rank, title] = item.split('. ');
-                return (
-                  <span 
-                    key={`search-${index}-${item}`}
-                    className="text-sm inline-flex items-center gap-1.5"
-                  >
-                    <span className="font-bold text-purple-600">{rank}.</span>
-                    <span className="text-gray-600">{title}</span>
+              {[...topCategories, ...topCategories].map((category, index) => (
+                <Link 
+                  key={`search-${index}-${category.category_id}`}
+                  href={`/treatments?depth2=${category.category_id}`}
+                  className="text-sm inline-flex items-center gap-1.5"
+                >
+                  <span className="font-bold text-purple-600">{index % topCategories.length + 1}.</span>
+                  <span className="text-gray-600">
+                    {category.category_name}
+                    <span className="text-gray-500 ml-1">
+                      ({category.total_views.toLocaleString()}회)
+                    </span>
                   </span>
-                );
-              })}
+                </Link>
+              ))}
             </div>
           </div>
         </div>
@@ -862,54 +865,72 @@ export default function HomePage() {
             <div className="flex items-center gap-2">
               <div className="flex flex-wrap gap-1">
                 {cities.map((city) => (
-                <Button 
+                  <Button 
                     key={city.id}
                     variant={selectedLocation === city.id ? 'default' : 'outline'}
                     onClick={() => setSelectedLocation(city.id)}
-                  className="min-w-[70px] h-8 text-sm"
-                >
+                    className="min-w-[70px] h-8 text-sm"
+                    disabled={!isAuthenticated}
+                  >
                     {city.name_vi}
-                </Button>
+                  </Button>
                 ))}
               </div>
               <Button 
                 variant="ghost" 
                 size="icon"
                 className="h-8 w-8"
+                disabled={!isAuthenticated}
               >
                 <Settings className="h-4 w-4" />
               </Button>
             </div>
           </div>
 
-          {/* PC 버전 - 슬라이드 */}
-          <div className="hidden md:block">
-            <HorizontalScroll>
-              <div className="flex gap-4">
+          {/* 로그인하지 않은 경우 보여줄 안내 메시지 */}
+          {!isAuthenticated ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <p className="text-lg text-gray-600 mb-4">
+                Login을 하시면, 해당 지역의 인기 Beauty를 볼 수 있어요.
+              </p>
+              <Link href="/login">
+                <Button className="min-w-[120px]">
+                  Login
+                </Button>
+              </Link>
+            </div>
+          ) : (
+            <>
+              {/* PC 버전 - 슬라이드 */}
+              <div className="hidden md:block">
+                <HorizontalScroll>
+                  <div className="flex gap-4">
+                    {selectedTreatments?.map((treatment) => (
+                      <Link 
+                        key={treatment.id}
+                        href={`/treatments/detail?id=${treatment.id}`}
+                        className="w-[300px] flex-shrink-0"
+                      >
+                        <TreatmentCard {...treatment} disableLink />
+                      </Link>
+                    ))}
+                  </div>
+                </HorizontalScroll>
+              </div>
+
+              {/* 모바일 버전 - 세로 리스트 */}
+              <div className="md:hidden flex flex-col gap-4">
                 {selectedTreatments?.map((treatment) => (
                   <Link 
                     key={treatment.id}
                     href={`/treatments/detail?id=${treatment.id}`}
-                    className="w-[300px] flex-shrink-0"
                   >
                     <TreatmentCard {...treatment} disableLink />
                   </Link>
                 ))}
               </div>
-            </HorizontalScroll>
-          </div>
-
-          {/* 모바일 버전 - 세로 리스트 */}
-          <div className="md:hidden flex flex-col gap-4">
-            {selectedTreatments?.map((treatment) => (
-              <Link 
-                key={treatment.id}
-                href={`/treatments/detail?id=${treatment.id}`}
-              >
-                <TreatmentCard {...treatment} disableLink />
-              </Link>
-            ))}
-          </div>
+            </>
+          )}
         </div>
       </section>
 

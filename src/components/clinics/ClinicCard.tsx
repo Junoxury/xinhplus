@@ -27,6 +27,7 @@ interface ClinicCardProps {
   isRecommended?: boolean;
   isAd?: boolean;
   isMember?: boolean;
+  isGoogle?: boolean;
   disableLink?: boolean;
 }
 
@@ -43,6 +44,7 @@ export function ClinicCard({
   isRecommended,
   isAd,
   isMember,
+  isGoogle,
   disableLink
 }: ClinicCardProps) {
   const [isLiked, setIsLiked] = useState(false);
@@ -78,7 +80,24 @@ export function ClinicCard({
               추천
             </Badge>
           )}
+          {isMember && (
+            <Badge 
+              className="bg-black/60 text-white backdrop-blur-sm border-0"
+            >
+              Member
+            </Badge>
+          )}
         </div>
+        {isGoogle && (
+          <div className="absolute bottom-2 right-2">
+            <Badge 
+              variant="secondary"
+              className="bg-black/60 text-white backdrop-blur-sm border-0 text-xs"
+            >
+              By Google
+            </Badge>
+          </div>
+        )}
         <button 
           onClick={handleLikeClick}
           className="absolute top-2 right-2 p-2 bg-white/80 backdrop-blur-sm rounded-full hover:bg-white/90 transition-colors"

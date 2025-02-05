@@ -44,6 +44,7 @@ export interface ClinicCardProps {
   }>;
   isNew?: boolean;
   isAd?: boolean;
+  isGoogle?: boolean;
 }
 
 // 병원 정보 페이지
@@ -276,16 +277,17 @@ export default function ClinicPage() {
 
           return {
             id: item.id,
-            title: item.hospital_name || item.name,  // hospital_name이 우선, 없으면 name 사용
+            title: item.hospital_name || item.name,
             description: item.description || '',
             image: item.thumbnail_url || '/images/placeholder.png',
             location: item.city_name || '',
-            rating: Number(item.average_rating || item.rating || 0),  // average_rating이 우선, 없으면 rating 사용
+            rating: Number(item.average_rating || item.rating || 0),
             viewCount: item.view_count || 0,
             categories: processedCategories,
             isRecommended: Boolean(item.is_recommended),
             isAd: Boolean(item.is_advertised),
-            isMember: Boolean(item.is_member)
+            isMember: Boolean(item.is_member),
+            isGoogle: Boolean(item.is_google)
           }
         })
 
