@@ -58,6 +58,7 @@ interface Hospital {
   is_recommended: boolean;
   is_advertised: boolean;
   is_member: boolean;
+  is_liked: boolean;
 }
 
 // 리뷰 타입 정의
@@ -352,6 +353,7 @@ export default function HomePage() {
     category_name: string;
     total_views: number;
   }[]>([])
+  const [currentUser, setCurrentUser] = useState<User | null>(null)
 
   // 카테고리 데이터 로드
   useEffect(() => {
@@ -561,11 +563,37 @@ export default function HomePage() {
     router.push(`/treatments?depth2=${item.id}`)
   }
 
+  // 현재 로그인한 사용자 정보 가져오기
+  useEffect(() => {
+    const getCurrentUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      setCurrentUser(user)
+    }
+
+    getCurrentUser()
+
+    // 인증 상태 변경 감지
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setCurrentUser(session?.user ?? null)
+    })
+
+    return () => {
+      subscription.unsubscribe()
+    }
+  }, [])
+
   // 추천 병원 데이터 로드
   useEffect(() => {
     const fetchRecommendedClinics = async () => {
       try {
-        const { data, error } = await supabase.rpc('get_hospitals_list', {
+        // 현재 사용자 정보 로깅
+        console.log('현재 로그인 상태:', {
+          currentUser,
+          userId: currentUser?.id,
+          isLoggedIn: !!currentUser
+        })
+
+        const params = {
           p_city_id: null,
           p_depth2_body_category_id: null,
           p_depth2_treatment_category_id: null,
@@ -576,27 +604,42 @@ export default function HomePage() {
           p_is_member: null,
           p_sort_by: 'views',
           p_page_size: 8,
-          p_page: 1
+          p_page: 1,
+          p_user_id: currentUser?.id || null
+        }
+
+        console.log('RPC 호출 파라미터:', {
+          현재유저: currentUser,
+          유저ID: currentUser?.id,
+          전체파라미터: params
         })
 
-        if (error) throw error
+        const { data, error } = await supabase.rpc('get_hospitals_list', params)
 
-        // RPC 응답을 ClinicCard props 형식으로 변환
+        if (error) {
+          console.error('RPC 에러:', error)
+          throw error
+        }
+
+        // 서버 응답 데이터 자세히 로깅
+        console.log('RPC 응답 전체 데이터:', {
+          데이터길이: data?.length,
+          첫번째항목: data?.[0],
+          전체데이터: data
+        })
+
+        // is_liked 값만 따로 확인
+        console.log('각 병원의 is_liked 값:', data?.map(item => ({
+          id: item.id,
+          hospital_name: item.hospital_name,
+          is_liked: item.is_liked,
+          user_id: currentUser?.id
+        })))
+
         const formattedClinics = data.map((item: any) => {
-          // categories 데이터 구조 확인
-          console.log('원본 병원 데이터:', {
-            id: item.id,
-            name: item.hospital_name,
-            categories: item.categories,
-            type: typeof item.categories,
-            isArray: Array.isArray(item.categories)
-          });
-
-          // categories 데이터 처리 - depth2의 name과 id 추출
           let processedCategories = [];
           try {
             if (item.categories) {
-              // 객체인 경우 배열로 변환
               const categoriesArray = Array.isArray(item.categories) 
                 ? item.categories 
                 : Object.values(item.categories);
@@ -604,16 +647,14 @@ export default function HomePage() {
               processedCategories = categoriesArray.map(cat => ({
                 id: cat.depth2?.id,
                 name: cat.depth2?.name
-              })).filter(cat => cat.id && cat.name);  // 유효한 데이터만 필터
+              })).filter(cat => cat.id && cat.name);
             }
           } catch (error) {
             console.error('카테고리 처리 중 오류:', error);
           }
 
-          console.log('처리된 카테고리:', processedCategories);
-
           return {
-            id: item.id,
+            id: Number(item.id),
             title: item.hospital_name,
             description: item.description || '',
             image: item.thumbnail_url || '/images/placeholder.png',
@@ -623,20 +664,26 @@ export default function HomePage() {
             categories: processedCategories,
             isRecommended: Boolean(item.is_recommended),
             isAd: Boolean(item.is_advertised),
-            isMember: Boolean(item.is_member)
+            isMember: Boolean(item.is_member),
+            isLiked: Boolean(item.is_liked)  // like_count 제거하고 is_liked만 유지
           }
         })
 
-        console.log('변환된 병원 데이터:', formattedClinics);
-        setRecommendedClinics(formattedClinics)
+        // 변환된 데이터의 isLiked 값 확인
+        console.log('변환된 isLiked 값:', formattedClinics.map(clinic => ({
+          id: clinic.id,
+          title: clinic.title,
+          isLiked: clinic.isLiked
+        })));
 
+        setRecommendedClinics(formattedClinics)
       } catch (error) {
         console.error('추천 병원 데이터 로드 실패:', error)
       }
     }
 
     fetchRecommendedClinics()
-  }, [])
+  }, [currentUser?.id])
 
   // 실시간 후기 데이터 로드
   useEffect(() => {
@@ -751,6 +798,59 @@ export default function HomePage() {
       console.log('Updated local treatments:', newLocalState)  // 디버깅 로그
       return newLocalState
     })
+  }
+
+  // 병원 좋아요 토글 핸들러 추가
+  const handleClinicLikeToggle = async (clinicId: number) => {
+    if (!currentUser) {
+      return
+    }
+
+    try {
+      // 먼저 UI를 즉시 업데이트
+      setRecommendedClinics(prev => prev.map(clinic => 
+        clinic.id === clinicId 
+          ? { 
+              ...clinic, 
+              isLiked: !clinic.isLiked  // 현재 상태를 반전
+            }
+          : clinic
+      ))
+
+      // 서버에 요청
+      const { data, error } = await supabase
+        .rpc('toggle_hospital_like', {
+          p_hospital_id: clinicId,
+          p_user_id: currentUser.id
+        })
+
+      if (error) {
+        // 에러 발생 시 원래 상태로 되돌림
+        setRecommendedClinics(prev => prev.map(clinic => 
+          clinic.id === clinicId 
+            ? { 
+                ...clinic, 
+                isLiked: !clinic.isLiked  // 다시 원래 상태로
+              }
+            : clinic
+        ))
+        throw error
+      }
+
+      // 서버 응답이 있는 경우에만 최종 상태 업데이트
+      if (data && data[0]) {
+        setRecommendedClinics(prev => prev.map(clinic => 
+          clinic.id === clinicId 
+            ? { 
+                ...clinic, 
+                isLiked: data[0].is_liked
+              }
+            : clinic
+        ))
+      }
+    } catch (error) {
+      console.error('좋아요 처리 중 오류:', error)
+    }
   }
 
   return (
@@ -1030,7 +1130,11 @@ export default function HomePage() {
                   href={`/clinics/detail?id=${clinic.id}`}
                   className="w-[calc(50vw-2rem)] md:w-[300px] flex-shrink-0"
                 >
-                  <ClinicCard {...clinic} disableLink />
+                  <ClinicCard 
+                    {...clinic} 
+                    disableLink 
+                    onLikeToggle={handleClinicLikeToggle}  // 좋아요 핸들러 추가
+                  />
                 </Link>
               ))}
             </div>

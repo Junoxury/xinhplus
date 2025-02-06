@@ -2,13 +2,13 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { Heart, Star, MapPin, Eye } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
-import { useState } from 'react'
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { cn } from '@/lib/utils'
 
 interface ClinicCardProps {
   id: string | number;
@@ -29,6 +29,8 @@ interface ClinicCardProps {
   isMember?: boolean;
   isGoogle?: boolean;
   disableLink?: boolean;
+  isLiked?: boolean;
+  onLikeToggle?: (id: number) => void;
 }
 
 export function ClinicCard({
@@ -45,18 +47,12 @@ export function ClinicCard({
   isAd,
   isMember,
   isGoogle,
-  disableLink
+  disableLink,
+  isLiked = false,
+  onLikeToggle,
 }: ClinicCardProps) {
-  const [isLiked, setIsLiked] = useState(false);
-
-  const handleLikeClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    setIsLiked(!isLiked);
-    // TODO: 좋아요 API 호출
-  };
-
   const CardContent = () => (
-    <div className="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-100">
+    <div className="relative bg-white rounded-lg shadow-md overflow-hidden">
       <div className="relative aspect-[4/3]">
         <Image
           src={image || '/images/placeholder.png'}
@@ -99,11 +95,20 @@ export function ClinicCard({
           </div>
         )}
         <button 
-          onClick={handleLikeClick}
-          className="absolute top-2 right-2 p-2 bg-white/80 backdrop-blur-sm rounded-full hover:bg-white/90 transition-colors"
+          onClick={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            onLikeToggle?.(Number(id))
+          }}
+          className="absolute top-4 right-4 z-10"
         >
           <Heart 
-            className={`w-5 h-5 ${isLiked ? 'fill-red-500 text-red-500' : 'text-gray-600'}`}
+            className={cn(
+              "w-6 h-6 transition-colors",
+              isLiked 
+                ? "fill-red-500 stroke-red-500" 
+                : "fill-transparent stroke-white hover:stroke-red-500"
+            )}
           />
         </button>
       </div>

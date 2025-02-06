@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/select"
 import { supabase } from '@/lib/supabase'
 import { SortOption } from '@/components/clinics/ClinicList'
+import type { User } from '@supabase/supabase-js'
 
 // 정렬 옵션 상수
 const SORT_OPTIONS = [
@@ -45,6 +46,8 @@ export interface ClinicCardProps {
   isNew?: boolean;
   isAd?: boolean;
   isGoogle?: boolean;
+  isLiked?: boolean;
+  likeCount: number;
 }
 
 // 병원 정보 페이지
@@ -72,6 +75,8 @@ export default function ClinicPage() {
   const [clinics, setClinics] = useState<ClinicCardProps[]>([])
   const [totalCount, setTotalCount] = useState(0)
   const [hasMore, setHasMore] = useState(true)
+
+  const [currentUser, setCurrentUser] = useState<User | null>(null)
 
   const handleLoadMore = async () => {
     setLoading(true)
@@ -198,6 +203,25 @@ export default function ClinicPage() {
     initializeFromUrl()
   }, [searchParams])
 
+  // 현재 로그인한 사용자 정보 가져오기
+  useEffect(() => {
+    const getCurrentUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      setCurrentUser(user)
+    }
+
+    getCurrentUser()
+
+    // 인증 상태 변경 감지
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setCurrentUser(session?.user ?? null)
+    })
+
+    return () => {
+      subscription.unsubscribe()
+    }
+  }, [])
+
   useEffect(() => {
     const fetchHospitals = async () => {
       try {
@@ -217,7 +241,8 @@ export default function ClinicPage() {
             p_page_size: ITEMS_PER_PAGE,
             p_page: page,
             p_ad_limit: 2,
-            p_sort_by: sortBy
+            p_sort_by: sortBy,
+            p_user_id: currentUser?.id || null
           })
 
         if (error) {
@@ -248,11 +273,11 @@ export default function ClinicPage() {
 
         // 데이터 변환
         const formattedClinics = data.map((item: any) => {
-          // categories 데이터 구조 확인
-          console.log('원본 병원 데이터:', {
+          // 원본 데이터 로깅 추가
+          console.log('병원 아이템 원본 데이터:', {
             id: item.id,
-            name: item.hospital_name,
-            categories: item.categories,
+            hospital_name: item.hospital_name,
+            is_liked: item.is_liked,  // is_liked 값 확인
           });
 
           // categories 데이터 처리 - depth2의 name과 id 추출
@@ -287,11 +312,18 @@ export default function ClinicPage() {
             isRecommended: Boolean(item.is_recommended),
             isAd: Boolean(item.is_advertised),
             isMember: Boolean(item.is_member),
-            isGoogle: Boolean(item.is_google)
+            isGoogle: Boolean(item.is_google),
+            isLiked: Boolean(item.is_liked),
+            likeCount: item.like_count || 0
           }
         })
 
-        console.log('변환된 병원 데이터:', formattedClinics);  // 변환 결과 확인용 로그
+        // 변환된 데이터 로깅
+        console.log('변환된 병원 데이터:', formattedClinics.map(clinic => ({
+          id: clinic.id,
+          title: clinic.title,
+          isLiked: clinic.isLiked
+        })));
 
         if (page === 1) {
           setClinics(formattedClinics)
@@ -316,7 +348,7 @@ export default function ClinicPage() {
     }
 
     fetchHospitals()
-  }, [page, sortBy, filters])
+  }, [page, sortBy, filters, currentUser?.id])
 
   const handleFilterChange = (newFilters: any) => {
     setPage(1)
@@ -332,6 +364,63 @@ export default function ClinicPage() {
       },
       priceRange: newFilters.priceRange
     }))
+  }
+
+  const handleLikeToggle = async (clinicId: number) => {
+    if (!currentUser) {
+      // TODO: 로그인이 필요하다는 메시지 표시
+      return
+    }
+
+    try {
+      // 먼저 UI를 즉시 업데이트
+      setClinics(prev => prev.map(clinic => 
+        clinic.id === clinicId 
+          ? { 
+              ...clinic, 
+              isLiked: !clinic.isLiked  // 현재 상태를 반전
+            }
+          : clinic
+      ))
+
+      // 서버에 요청
+      const { data, error } = await supabase
+        .rpc('toggle_hospital_like', {
+          p_hospital_id: clinicId,
+          p_user_id: currentUser.id
+        })
+
+      if (error) {
+        // 에러 발생 시 원래 상태로 되돌림
+        setClinics(prev => prev.map(clinic => 
+          clinic.id === clinicId 
+            ? { 
+                ...clinic, 
+                isLiked: !clinic.isLiked  // 다시 원래 상태로
+              }
+            : clinic
+        ))
+        throw error
+      }
+
+      // 서버 응답 확인을 위한 로그
+      console.log('토글 응답:', data)
+
+      // 서버 응답이 있는 경우에만 최종 상태 업데이트
+      if (data && data[0]) {  // 배열의 첫 번째 항목 확인
+        setClinics(prev => prev.map(clinic => 
+          clinic.id === clinicId 
+            ? { 
+                ...clinic, 
+                isLiked: data[0].is_liked,  // 배열의 첫 번째 항목에서 is_liked 값 사용
+                likeCount: data[0].like_count 
+              }
+            : clinic
+        ))
+      }
+    } catch (error) {
+      console.error('좋아요 처리 중 오류:', error)
+    }
   }
 
   return (
@@ -375,6 +464,7 @@ export default function ClinicPage() {
               onLoadMore={handleLoadMore}
               onSortChange={handleSortChange}
               sortBy={sortBy}
+              onLikeToggle={handleLikeToggle}
             />
           </div>
         </div>
@@ -391,6 +481,7 @@ export default function ClinicPage() {
             sortBy={sortBy}
             className="w-full"
             onFilterClick={() => toggleMobileFilter(true)}
+            onLikeToggle={handleLikeToggle}
           />
 
           {showMobileFilter && (

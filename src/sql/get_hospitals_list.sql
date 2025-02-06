@@ -18,7 +18,8 @@ CREATE OR REPLACE FUNCTION get_hospitals_list(
     p_page int DEFAULT 1,
     p_ad_limit int DEFAULT 2,
     p_sort_by text DEFAULT 'created',
-    p_search_term text DEFAULT NULL    -- 검색어 파라미터 추가
+    p_search_term text DEFAULT NULL,    -- 검색어 파라미터 추가
+    p_user_id uuid DEFAULT NULL    -- 사용자 ID 파라미터 추가
 ) 
 RETURNS TABLE (
     id bigint,
@@ -43,7 +44,8 @@ RETURNS TABLE (
     has_next_page boolean,
     is_ad boolean,
     categories jsonb,
-    total_count bigint    -- 추가된 필드
+    total_count bigint,    -- 추가된 필드
+    is_liked boolean    -- 좋아요 여부 필드 추가
 ) AS $$
 DECLARE
     v_offset int;
@@ -184,6 +186,12 @@ BEGIN
             WHERE row_num > (v_offset + p_page_size)
             LIMIT 1
         ) as has_next
+    ),
+    user_likes AS (
+        -- 사용자의 좋아요 정보를 가져오는 CTE 추가
+        SELECT hospital_id
+        FROM hospital_likes
+        WHERE user_id = p_user_id
     )
     SELECT 
         r.id,
@@ -208,7 +216,12 @@ BEGIN
         npc.has_next as has_next_page,
         r.is_advertisement as is_ad,
         r.categories,
-        v_total_count
+        v_total_count,
+        -- 사용자의 좋아요 여부 추가
+        CASE 
+            WHEN p_user_id IS NULL THEN false
+            ELSE EXISTS (SELECT 1 FROM user_likes ul WHERE ul.hospital_id = r.id)
+        END as is_liked
     FROM ranked_results r
     CROSS JOIN next_page_check npc
     WHERE r.row_num > v_offset 

@@ -16,6 +16,7 @@ interface ClinicListProps {
   onFilterClick?: () => void
   onSortChange?: (sort: SortOption) => void
   sortBy: SortOption
+  onLikeToggle: (id: number) => void
 }
 
 export function ClinicList({
@@ -27,7 +28,8 @@ export function ClinicList({
   className = '',
   onFilterClick,
   onSortChange,
-  sortBy = 'latest'
+  sortBy = 'latest',
+  onLikeToggle
 }: ClinicListProps) {
   if (!loading && clinics.length === 0) {
     return (
@@ -90,6 +92,7 @@ export function ClinicList({
           <ClinicCard
             key={clinic.id}
             {...clinic}
+            onLikeToggle={onLikeToggle}
           />
         ))}
       </div>
