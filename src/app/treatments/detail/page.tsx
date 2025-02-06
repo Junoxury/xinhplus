@@ -319,6 +319,7 @@ interface Treatment {
   is_advertised: boolean
   is_recommended: boolean
   is_discounted: boolean
+  is_liked: boolean
 }
 
 interface TreatmentDetail {
@@ -486,9 +487,22 @@ export default function TreatmentDetailPage() {
       }
 
       if (data) {
-        setOtherTreatments(
-          (data as Treatment[]).filter(t => t.id !== treatment.id)
-        )
+        const formattedTreatments = data
+          .filter(t => t.id !== treatment.id)
+          .map(item => ({
+            ...item,
+            rating: Number(item.rating || 0),
+            comment_count: item.comment_count || 0,
+            view_count: item.view_count || 0,
+            like_count: item.like_count || 0,
+            categories: item.categories || [],
+            is_advertised: Boolean(item.is_advertised),
+            is_recommended: Boolean(item.is_recommended),
+            is_discounted: Boolean(item.is_discounted),
+            is_liked: Boolean(item.is_liked)
+          }))
+
+        setOtherTreatments(formattedTreatments)
       }
 
     } catch (error) {
@@ -538,9 +552,22 @@ export default function TreatmentDetailPage() {
       }
 
       if (data) {
-        setSimilarTreatments(
-          (data as Treatment[]).filter(t => t.id !== treatment?.id)
-        )
+        const formattedTreatments = data
+          .filter(t => t.id !== treatment?.id)
+          .map(item => ({
+            ...item,
+            rating: Number(item.rating || 0),
+            comment_count: item.comment_count || 0,
+            view_count: item.view_count || 0,
+            like_count: item.like_count || 0,
+            categories: item.categories || [],
+            is_advertised: Boolean(item.is_advertised),
+            is_recommended: Boolean(item.is_recommended),
+            is_discounted: Boolean(item.is_discounted),
+            is_liked: Boolean(item.is_liked)
+          }))
+
+        setSimilarTreatments(formattedTreatments)
       }
 
     } catch (error) {
@@ -747,24 +774,38 @@ export default function TreatmentDetailPage() {
   // 좋아요 상태 확인
   useEffect(() => {
     const checkLikeStatus = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session?.user || !treatment?.id) return
-      
-      const { data, error } = await supabase
-        .rpc('check_treatment_like', {
-          p_treatment_id: treatment.id,
-          p_user_id: session.user.id
-        })
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (!session?.user || !treatment?.id) {
+          setIsLiked(false)  // 로그인하지 않은 경우 false로 설정
+          return
+        }
+        
+        // 실제 좋아요 상태 확인
+        const { data, error } = await supabase
+          .rpc('check_treatment_like', {
+            p_treatment_id: treatment.id,
+            p_user_id: session.user.id
+          })
 
-      if (!error && data) {
-        setIsLiked(data)
+        if (error) {
+          console.error('Error checking like status:', error)
+          setIsLiked(false)
+          return
+        }
+
+        console.log('Like status checked:', data)  // 디버깅용
+        setIsLiked(Boolean(data))
+      } catch (error) {
+        console.error('Error in checkLikeStatus:', error)
+        setIsLiked(false)
       }
     }
 
     checkLikeStatus()
-  }, [treatment?.id])
+  }, [treatment?.id])  // treatment?.id가 변경될 때마다 실행
 
-  // 좋아요 토글 함수
+  // 좋아요 토글 함수에도 상태 체크 추가
   const handleLike = async () => {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session?.user) {
@@ -782,15 +823,41 @@ export default function TreatmentDetailPage() {
       if (error) throw error
 
       if (data && data[0]) {
-        setIsLiked(data[0].is_liked)
+        const newLikeStatus = data[0].is_liked
+        console.log('New like status:', newLikeStatus)  // 디버깅용
+        
+        // 모든 관련 상태 동시에 업데이트
+        setIsLiked(newLikeStatus)
         setTreatment(prev => prev ? {
           ...prev,
-          like_count: data[0].like_count
+          like_count: data[0].like_count,
+          is_liked: newLikeStatus
         } : null)
       }
     } catch (error) {
       console.error('Error toggling like:', error)
     }
+  }
+
+  // 좋아요 토글 핸들러 추가
+  const handleLikeToggle = async (treatmentId: number, newState: boolean) => {
+    // 다른 시술 업데이트
+    setOtherTreatments(prev => 
+      prev.map(treatment => 
+        treatment.id === treatmentId 
+          ? { ...treatment, is_liked: newState }
+          : treatment
+      )
+    )
+
+    // 비슷한 시술 업데이트
+    setSimilarTreatments(prev => 
+      prev.map(treatment => 
+        treatment.id === treatmentId 
+          ? { ...treatment, is_liked: newState }
+          : treatment
+      )
+    )
   }
 
   if (!treatment) return null
@@ -1132,7 +1199,11 @@ export default function TreatmentDetailPage() {
                   <div className="flex gap-4">
                     {similarTreatments.map((treatment) => (
                       <div key={treatment.id} className="w-[300px] flex-shrink-0">
-                        <TreatmentCard {...treatment} />
+                        <TreatmentCard 
+                          {...treatment} 
+                          onLikeToggle={handleLikeToggle}
+                          is_liked={treatment.is_liked}
+                        />
                       </div>
                     ))}
                   </div>
@@ -1141,7 +1212,11 @@ export default function TreatmentDetailPage() {
               <div className="md:hidden flex flex-col gap-4">
                 {similarTreatments.map((treatment) => (
                   <div key={treatment.id}>
-                    <TreatmentCard {...treatment} />
+                    <TreatmentCard 
+                      {...treatment} 
+                      onLikeToggle={handleLikeToggle}
+                      is_liked={treatment.is_liked}
+                    />
                   </div>
                 ))}
               </div>

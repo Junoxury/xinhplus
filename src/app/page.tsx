@@ -723,6 +723,36 @@ export default function HomePage() {
     fetchTopCategories();
   }, []);
 
+  // 좋아요 토글 핸들러
+  const handleLikeToggle = (treatmentId: number, newState: boolean) => {
+    console.log('Toggling like:', { treatmentId, newState })  // 디버깅 로그
+
+    // 인기 시술 업데이트
+    setPopularTreatments(prev => {
+      const updated = prev.map(treatment => 
+        treatment.id === treatmentId 
+          ? { ...treatment, is_liked: newState }
+          : treatment
+      )
+      console.log('Updated popular treatments:', updated)  // 디버깅 로그
+      return updated
+    })
+
+    // 지역별 시술 업데이트
+    setLocalPopularTreatments(prev => {
+      const newLocalState = { ...prev }
+      Object.keys(newLocalState).forEach(cityId => {
+        newLocalState[cityId] = newLocalState[cityId].map(treatment => 
+          treatment.id === treatmentId 
+            ? { ...treatment, is_liked: newState }
+            : treatment
+        )
+      })
+      console.log('Updated local treatments:', newLocalState)  // 디버깅 로그
+      return newLocalState
+    })
+  }
+
   return (
     <main className="min-h-screen">
       <Banner />
@@ -863,7 +893,11 @@ export default function HomePage() {
                     href={`/treatments/detail?id=${treatment.id}`}
                     className="w-[300px] flex-shrink-0"
                   >
-                    <TreatmentCard {...treatment} disableLink />
+                    <TreatmentCard 
+                      {...treatment} 
+                      disableLink 
+                      onLikeToggle={handleLikeToggle}
+                    />
                   </Link>
                 ))}
               </div>
@@ -876,7 +910,11 @@ export default function HomePage() {
                 key={treatment.id}
                 href={`/treatments/detail?id=${treatment.id}`}
               >
-                <TreatmentCard {...treatment} disableLink />
+                <TreatmentCard 
+                  {...treatment} 
+                  disableLink 
+                  onLikeToggle={handleLikeToggle}
+                />
               </Link>
             ))}
           </div>
@@ -940,7 +978,11 @@ export default function HomePage() {
                         href={`/treatments/detail?id=${treatment.id}`}
                         className="w-[300px] flex-shrink-0"
                       >
-                        <TreatmentCard {...treatment} disableLink />
+                        <TreatmentCard 
+                          {...treatment} 
+                          disableLink 
+                          onLikeToggle={handleLikeToggle}
+                        />
                       </Link>
                     ))}
                   </div>
@@ -954,7 +996,11 @@ export default function HomePage() {
                     key={treatment.id}
                     href={`/treatments/detail?id=${treatment.id}`}
                   >
-                    <TreatmentCard {...treatment} disableLink />
+                    <TreatmentCard 
+                      {...treatment} 
+                      disableLink 
+                      onLikeToggle={handleLikeToggle}
+                    />
                   </Link>
                 ))}
               </div>

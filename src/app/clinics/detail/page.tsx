@@ -302,6 +302,9 @@ interface HospitalDetail {
   }[]
 }
 
+// 상수 수정
+const ITEMS_PER_PAGE = 8  // 한 페이지당 8개의 시술 표시
+
 // 시술 정보 페이지
 export default function TreatmentDetailPage() {
   const [showFullImage, setShowFullImage] = useState(false)
@@ -322,7 +325,6 @@ export default function TreatmentDetailPage() {
   const [allTreatments, setAllTreatments] = useState<Treatment[]>([])
   const [hasMore, setHasMore] = useState(true)
   const [page, setPage] = useState(0)
-  const ITEMS_PER_PAGE = 8
 
   const router = useRouter()
   const [isLiked, setIsLiked] = useState(false)
@@ -582,6 +584,8 @@ export default function TreatmentDetailPage() {
     if (!hospital?.id) return
 
     try {
+      const { data: { user } } = await supabase.auth.getUser()
+      
       const { data, error } = await supabase
         .rpc('get_treatments', { 
           p_city_id: null,
@@ -591,11 +595,13 @@ export default function TreatmentDetailPage() {
           p_is_advertised: null,
           p_is_discounted: null,
           p_is_recommended: null,
-          p_limit: ITEMS_PER_PAGE,
-          p_offset: currentPage * ITEMS_PER_PAGE,
+          p_limit: ITEMS_PER_PAGE,  // 8개로 수정
+          p_offset: currentPage * ITEMS_PER_PAGE,  // 페이지 오프셋도 8개 단위로 계산
           p_price_from: null,
           p_price_to: null,
-          p_sort_by: 'view_count'
+          p_sort_by: 'view_count',
+          p_search_term: null,
+          p_user_id: user?.id || null
         })
 
       if (error) {
@@ -615,11 +621,10 @@ export default function TreatmentDetailPage() {
         if (isLoadMore) {
           setAllTreatments(prev => [...prev, ...filteredData])
         } else {
-          // 초기 로드일 때만 데이터 새로 설정
           setAllTreatments(filteredData)
         }
         
-        // 다음 페이지 존재 여부 확인
+        // 다음 페이지 존재 여부 확인 (정확히 8개가 있으면 더 있다는 의미)
         setHasMore(data.length === ITEMS_PER_PAGE)
       }
 
@@ -746,6 +751,17 @@ export default function TreatmentDetailPage() {
     setReviewSortBy(value)
     setReviewPage(1)  // 정렬 변경 시 페이지 초기화
     setRecentReviews([])  // 리뷰 목록 초기화
+  }
+
+  // 시술 좋아요 토글 핸들러 추가
+  const handleTreatmentLikeToggle = async (treatmentId: number, newState: boolean) => {
+    setAllTreatments(prev => 
+      prev.map(treatment => 
+        treatment.id === treatmentId 
+          ? { ...treatment, is_liked: newState }
+          : treatment
+      )
+    )
   }
 
   return (
@@ -1155,7 +1171,11 @@ export default function TreatmentDetailPage() {
                 href={`/treatments/detail?id=${treatment.id}`}
                 className="block"
               >
-                <TreatmentCard {...treatment} disableLink />
+                <TreatmentCard 
+                  {...treatment} 
+                  disableLink 
+                  onLikeToggle={handleTreatmentLikeToggle}
+                />
               </Link>
             ))}
           </div>
@@ -1167,7 +1187,11 @@ export default function TreatmentDetailPage() {
                 href={`/treatments/detail?id=${treatment.id}`}
                 className="block"
               >
-                <TreatmentCard {...treatment} disableLink />
+                <TreatmentCard 
+                  {...treatment} 
+                  disableLink 
+                  onLikeToggle={handleTreatmentLikeToggle}
+                />
               </Link>
             ))}
           </div>

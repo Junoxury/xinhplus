@@ -4,6 +4,8 @@ import { Badge } from '@/components/ui/badge'
 import { formatPrice } from '@/utils/format'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { supabase } from '@/lib/supabase'
+import { useState, useEffect } from 'react'
 
 interface TreatmentCardProps {
   id: number
@@ -29,6 +31,7 @@ interface TreatmentCardProps {
   is_recommended: boolean
   disableLink?: boolean
   is_liked?: boolean
+  onLikeToggle?: (id: number, newState: boolean) => void
 }
 
 export function TreatmentCard({
@@ -47,14 +50,53 @@ export function TreatmentCard({
   is_advertised,
   is_recommended,
   disableLink,
+  onLikeToggle,
   is_liked = false
 }: TreatmentCardProps) {
   const router = useRouter()
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
 
-  const handleLikeClick = (e: React.MouseEvent) => {
+  // 인증 상태 확인
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      setIsAuthenticated(!!user)
+    }
+    checkAuth()
+  }, [])
+
+  const handleLikeClick = async (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    router.push('/login')
+
+    if (!isAuthenticated) {
+      router.push('/login')
+      return
+    }
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { data, error } = await supabase.rpc('toggle_treatment_like', {
+        p_treatment_id: id,
+        p_user_id: user.id
+      })
+
+      if (error) throw error
+
+      console.log('Toggle response:', data)  // 응답 데이터 확인
+
+      // 배열의 첫 번째 항목을 사용
+      if (data && data[0] && onLikeToggle) {
+        const toggleResult = data[0]
+        console.log('Toggle result:', toggleResult)
+        onLikeToggle(id, toggleResult.is_liked)
+      }
+
+    } catch (error) {
+      console.error('Error toggling like:', error)
+    }
   }
 
   const CardContent = () => (
