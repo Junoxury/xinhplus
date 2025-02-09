@@ -78,7 +78,11 @@ const nextConfig = {
     dest: 'public',
     register: true,
     skipWaiting: true,
-  })
+  }),
+  webpack: (config, { isServer }) => {
+    config.resolve.fallback = { fs: false };
+    return config;
+  },
 }
 
 export default nextConfig 
