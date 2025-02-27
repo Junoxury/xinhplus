@@ -105,11 +105,27 @@ const shorts = [
   }
 ];
 
+interface FilterState {
+  cityId?: number | null;
+  options: {
+    is_recommended: boolean;
+    has_discount: boolean;
+    is_member: boolean;
+    is_advertised: boolean;
+  };
+  priceRange: number[];
+}
+
 export default function ShortVideoPage() {
-  const [filters, setFilters] = useState({
-    location: '',
-    rating: 0,
-    categories: []
+  const [filters, setFilters] = useState<FilterState>({
+    cityId: null,
+    options: {
+      is_recommended: false,
+      has_discount: false,
+      is_member: false,
+      is_advertised: false
+    },
+    priceRange: [0, 100]
   });
 
   const [page, setPage] = useState(1)
@@ -127,8 +143,12 @@ export default function ShortVideoPage() {
     setLoading(false)
   }
 
-  const handleCategorySelect = (selectedCategories: string[]) => {
-    console.log('Selected categories:', selectedCategories)
+  const handleCategorySelect = (categoryId: number | null, isBodyPart: boolean) => {
+    console.log('Selected category:', categoryId, 'isBodyPart:', isBodyPart);
+  }
+
+  const handleSubCategorySelect = (subCategoryId: number | null, isBodyPart: boolean) => {
+    console.log('Selected sub category:', subCategoryId, 'isBodyPart:', isBodyPart);
   }
 
   const [showMobileFilter, setShowMobileFilter] = useState(false)
@@ -141,6 +161,10 @@ export default function ShortVideoPage() {
     }
     setShowMobileFilter(show)
   }
+
+  const handleFilterChange = (filters: FilterState) => {
+    setFilters(filters);
+  };
 
   useEffect(() => {
     return () => {
@@ -161,13 +185,14 @@ export default function ShortVideoPage() {
           bodyPartSubs={bodyPartsData.subCategories}
           treatmentMethodSubs={treatmentMethodsData.subCategories}
           onCategorySelect={handleCategorySelect}
+          onSubCategorySelect={handleSubCategorySelect}
         />
 
         {/* PC 버전 */}
         <div className="hidden md:flex gap-6 mt-8">
           <div className="w-1/4">
             <TreatmentFilter 
-              onFilterChange={setFilters} 
+              onFilterChange={handleFilterChange}
               showPriceFilter={false} 
             />
           </div>
@@ -260,7 +285,7 @@ export default function ShortVideoPage() {
                 onClick={e => e.stopPropagation()}
               >
                 <TreatmentFilter 
-                  onFilterChange={setFilters}
+                  onFilterChange={handleFilterChange}
                   onClose={() => toggleMobileFilter(false)}
                   isMobile={true}
                   showPriceFilter={false}

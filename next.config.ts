@@ -1,4 +1,5 @@
 import withPWA from 'next-pwa'
+import type { Configuration } from 'webpack'
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -74,15 +75,23 @@ const nextConfig = {
       }
     ],
   },
-  ...withPWA({
-    dest: 'public',
-    register: true,
-    skipWaiting: true,
-  }),
-  webpack: (config, { isServer }) => {
-    config.resolve.fallback = { fs: false };
-    return config;
+  webpack: (config: Configuration, { isServer: _ }: { isServer: boolean }) => {
+    config.resolve = {
+      ...config.resolve,
+      fallback: {
+        ...config.resolve?.fallback,
+        fs: false
+      }
+    }
+    return config
   },
 }
 
-export default nextConfig 
+const withPWAConfig = withPWA({
+  dest: 'public',
+  register: true,
+  skipWaiting: true,
+})
+
+// @ts-ignore - next-pwa와 next.js 타입 충돌 무시
+export default withPWAConfig(nextConfig) 

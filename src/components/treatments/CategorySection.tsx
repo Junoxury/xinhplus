@@ -3,7 +3,7 @@ import { useRef, MouseEvent, useState, useEffect } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { X } from 'lucide-react'
 
-interface Category {
+export interface Category {
   id: number;
   name: string;
   icon: string;
@@ -11,8 +11,9 @@ interface Category {
   href: string;
 }
 
-interface SubCategory {
+export interface SubCategory {
   id: number;
+  name?: string;
   label: string;
   parentId?: number;
 }

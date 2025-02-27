@@ -2,12 +2,6 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { Heart, Star, MapPin, Eye } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
 import { cn } from '@/lib/utils'
 
 interface ClinicCardProps {

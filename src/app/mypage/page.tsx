@@ -9,9 +9,19 @@ import { BlogCard } from '@/components/blog/BlogCard'
 import { TreatmentCard } from '@/components/treatments/TreatmentCard'
 import { ClinicCard } from '@/components/clinics/ClinicCard'
 import { ReviewCard } from '@/components/reviews/ReviewCard'
+import { PostCard } from '@/components/posts/PostCard'
 import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+
+// City 인터페이스 추가
+interface City {
+  id: number;
+  name: string;
+  name_vi: string;
+  name_ko: string;
+  is_active: boolean;
+}
 
 // 인터페이스 추가
 interface CategoryData {
@@ -132,6 +142,100 @@ const reviewsList = [
   }
 ]
 
+// likedTreatments 타입 정의 수정
+interface Treatment {
+  id: string;
+  title: string;
+  summary: string;
+  hospital_name: string;
+  city_name: string;
+  thumbnail_url: string;
+  price: number;
+  discount_price: number;
+  discount_rate: number;
+  rating: number;
+  comment_count: number;
+  categories: Array<{ depth2_name: string }> | string[];
+  is_advertised: boolean;
+  is_recommended: boolean;
+  total_count?: number;
+  has_next_page?: boolean;
+}
+
+// likedHospitals 타입 정의
+interface HospitalData {
+  id: string;
+  hospital_name: string;
+  description: string;
+  thumbnail_url: string;
+  city_name: string;
+  average_rating: number;
+  view_count: number;
+  like_count: number;
+  categories: any;
+  is_recommended: boolean;
+  is_advertised: boolean;
+  is_member: boolean;
+  total_count: number;
+  has_next_page: boolean;
+}
+
+// ReviewData 인터페이스 추가 (API 응답 데이터 형식)
+interface ReviewData {
+  id: string;
+  before_image: string;
+  after_image: string;
+  rating: number;
+  content: string;
+  author_name: string;
+  author_image: string;
+  created_at: string;
+  treatment_name: string;
+  categories: Array<{ depth2_name: string }> | any;
+  location: string;
+  hospital_name: string;
+  comment_count: number;
+  view_count: number;
+  like_count?: number;
+  total_count?: number;
+  has_next_page?: boolean;
+}
+
+// Post 인터페이스 수정
+interface Post {
+  id: string;
+  title: string;
+  content: string;
+  thumbnail: string;
+  author_name?: string;     // author 객체 대신 flat한 구조로
+  author_avatar?: string;   // author 객체 대신 flat한 구조로
+  date: string;
+  tags: string[];
+  likes: number;
+  comments: number;
+  views: number;
+  total_count?: number;
+}
+
+// setLikedHospitals의 타입을 formattedData 형식으로 변경
+interface FormattedHospitalData {
+  id: string;
+  title: string;
+  description: string;
+  image: string;
+  location: string;
+  rating: number;
+  reviewCount: number;
+  viewCount: number;
+  categories: any;
+  isRecommended: boolean;
+  isAd: boolean;
+  isMember: boolean;
+  disableLink: boolean;
+  isLiked: boolean;
+  total_count?: number;
+}
+
 export default function MyPage() {
   const router = useRouter()
   const [wishlistTab, setWishlistTab] = useState('Beauty')
@@ -154,22 +258,22 @@ export default function MyPage() {
   const [profileData, setProfileData] = useState<ProfileData | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isUploading, setIsUploading] = useState(false)
-  const [likedTreatments, setLikedTreatments] = useState<any[]>([])
+  const [likedTreatments, setLikedTreatments] = useState<Treatment[]>([])
   const [hasMoreLiked, setHasMoreLiked] = useState(false)
   const [likedPage, setLikedPage] = useState(0)
   const [isLoadingLiked, setIsLoadingLiked] = useState(false)
-  const [likedHospitals, setLikedHospitals] = useState<ClinicCard[]>([])
+  const [likedHospitals, setLikedHospitals] = useState<FormattedHospitalData[]>([])
   const [hasMoreHospitals, setHasMoreHospitals] = useState(false)
   const [isLoadingHospitals, setIsLoadingHospitals] = useState(false)
-  const [likedReviews, setLikedReviews] = useState<any[]>([])
+  const [likedReviews, setLikedReviews] = useState<ReviewData[]>([])
   const [hasMoreReviews, setHasMoreReviews] = useState(false)
   const [reviewPage, setReviewPage] = useState(1)
   const [isLoadingReviews, setIsLoadingReviews] = useState(false)
-  const [likedPosts, setLikedPosts] = useState<any[]>([])
+  const [likedPosts, setLikedPosts] = useState<Post[]>([])
   const [hasMorePosts, setHasMorePosts] = useState(false)
   const [postPage, setPostPage] = useState(1)
   const [isLoadingPosts, setIsLoadingPosts] = useState(false)
-  const [myReviews, setMyReviews] = useState<any[]>([])
+  const [myReviews, setMyReviews] = useState<ReviewData[]>([])
   const [hasMoreMyReviews, setHasMoreMyReviews] = useState(false)
   const [myReviewPage, setMyReviewPage] = useState(1)
   const [isLoadingMyReviews, setIsLoadingMyReviews] = useState(false)
@@ -178,6 +282,7 @@ export default function MyPage() {
   const [commentPage, setCommentPage] = useState(1)
   const [isLoadingComments, setIsLoadingComments] = useState(false)
   const [preferredCategoryIds, setPreferredCategoryIds] = useState<number[]>([])
+  const [hospitalPage, setHospitalPage] = useState(1)
 
   const ITEMS_PER_PAGE = 8
   const currentTreatments = treatmentsList.slice(0, page * ITEMS_PER_PAGE)
@@ -190,45 +295,13 @@ export default function MyPage() {
     setLoading(false)
   }
 
-  const handleCategorySelect = async (category: CategoryData, isAdd: boolean) => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session?.user) {
-        alert("로그인이 필요합니다")
-        router.push('/auth/signin')
-        return
-      }
-
-      const { data, error } = await supabase.rpc('handle_user_preferred_category', {
-        p_user_id: session.user.id,
-        p_depth2_id: Number(category.id),
-        p_is_add: isAdd
-      })
-
-      if (error) throw error
-
-      if (data && data[0]) {
-        if (!data[0].success) {
-          alert(data[0].message)
-          return
-        }
-
-        // 반환된 카테고리 ID 배열을 기반으로 선택된 카테고리 업데이트
-        const newSelectedCategories = data[0].categories.map(id => {
-          const foundCategory = [...bodyParts, ...treatmentMethods].find(c => c.id === id)
-          return {
-            id: id,
-            label: foundCategory?.label || '',
-            name: foundCategory?.label || ''
-          }
-        })
-
-        setSelectedCategories(newSelectedCategories)
-      }
-
-    } catch (error) {
-      console.error('카테고리 업데이트 중 에러:', error)
-      alert("카테고리 업데이트에 실패했습니다")
+  const handleCategorySelect = (category: CategoryData, isSelected: boolean) => {
+    if (isSelected) {
+      // 선택된 카테고리 추가 시 id를 number로 변환하여 추가
+      setSelectedCategories(prev => [...prev, { ...category, id: Number(category.id) }])
+    } else {
+      // 선택 해제 시 해당 id를 가진 카테고리 제외
+      setSelectedCategories(prev => prev.filter(c => c.id !== category.id))
     }
   }
 
@@ -286,7 +359,7 @@ export default function MyPage() {
           const selectedCats = preferredCategoryIds.map(id => {
             const foundCategory = allCategories.find(c => c.id === id)
             return {
-              id: String(id),
+              id: Number(id),
               label: foundCategory?.label || '',
               name: foundCategory?.label || ''
             }
@@ -309,7 +382,7 @@ export default function MyPage() {
       const selectedCats = preferredCategoryIds.map(id => {
         const foundCategory = allCategories.find(c => c.id === id)
         return {
-          id: String(id),
+          id: Number(id),
           label: foundCategory?.label || '',
           name: foundCategory?.label || ''
         }
@@ -623,25 +696,24 @@ export default function MyPage() {
 
       if (data && data.length > 0) {
         // 데이터를 ClinicCard props 타입에 맞게 변환
-        const formattedData = data.map(hospital => ({
+        const formattedData = data.map((hospital: HospitalData) => ({
           id: hospital.id,
           title: hospital.hospital_name,
-          description: hospital.description,
-          image: hospital.thumbnail_url,
+          description: hospital.description || '',
+          image: hospital.thumbnail_url || '/images/placeholder.png',
           location: hospital.city_name,
-          rating: Number(hospital.average_rating),
-          reviewCount: Number(hospital.like_count),
-          viewCount: Number(hospital.view_count),
-          categories: Array.isArray(hospital.categories) 
-            ? hospital.categories 
-            : Object.keys(hospital.categories || {}),
+          rating: Number(hospital.average_rating) || 0,
+          reviewCount: Number(hospital.like_count) || 0,
+          viewCount: Number(hospital.view_count) || 0,
+          categories: Array.isArray(hospital.categories) ? hospital.categories : [],
           isRecommended: hospital.is_recommended,
           isAd: hospital.is_advertised,
           isMember: hospital.is_member,
           disableLink: false,
-          total_count: hospital.total_count  // total_count 추가
+          isLiked: true,
+          total_count: hospital.total_count
         }))
-
+        console.log('ClinicCard 타입 확인:', formattedData[0])
         if (pageNumber === 1) {
           setLikedHospitals(formattedData)
         } else {
@@ -671,13 +743,11 @@ export default function MyPage() {
           p_page: pageNumber
         })
 
-      console.log('RPC 리뷰 데이터:', data) // 데이터 확인
-
       if (error) throw error
 
       if (data) {
         // categories 데이터 변환
-        const formattedData = data.map(review => {
+        const formattedData = data.map((review: ReviewData) => {
           // categories 데이터 변환
           const formattedCategories = review.categories 
             ? (Array.isArray(review.categories) 
@@ -693,19 +763,18 @@ export default function MyPage() {
             content: review.content || '',
             author: review.author_name || '',
             authorImage: review.author_image || '',
-            date: review.created_at,
+            date: review.created_at ? new Date(review.created_at).toLocaleDateString() : '',
             treatmentName: review.treatment_name || '',
-            categories: formattedCategories,  // 변환된 categories 사용
+            categories: formattedCategories,
             isAuthenticated: true,
             location: review.location || '',
             clinicName: review.hospital_name || '',
             commentCount: Number(review.comment_count) || 0,
             viewCount: Number(review.view_count) || 0,
-            total_count: review.total_count
+            total_count: review.total_count,
+            like_count: review.like_count || 0
           }
         })
-
-        console.log('변환된 리뷰 데이터:', formattedData) // 변환된 데이터 확인
 
         if (pageNumber === 1) {
           setLikedReviews(formattedData)
@@ -778,7 +847,7 @@ export default function MyPage() {
     }
   }, [wishlistTab])
 
-  // 더보기 핸들러 추가
+  // 더보기 핸들러 수정
   const handleLoadMoreHospitals = async () => {
     const nextPage = hospitalPage + 1
     await fetchLikedHospitals(nextPage)
@@ -806,15 +875,15 @@ export default function MyPage() {
         return (
           <>
             <h3 className="text-lg font-medium mb-4">
-              찜한 시술 {likedTreatments[0]?.total_count || 0}개
+              찜한 시술 {likedTreatments[0]?.total_count ?? 0}개
             </h3>
             {likedTreatments && likedTreatments.length > 0 ? (
               <>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                  {likedTreatments.map((treatment) => (
+                  {likedTreatments.map((treatment: Treatment) => (
                     <TreatmentCard
                       key={treatment.id}
-                      id={treatment.id}
+                      id={Number(treatment.id)}
                       title={treatment.title}
                       summary={treatment.summary}
                       hospital_name={treatment.hospital_name}
@@ -825,9 +894,15 @@ export default function MyPage() {
                       discount_rate={treatment.discount_rate}
                       rating={treatment.rating}
                       comment_count={treatment.comment_count}
-                      categories={treatment.categories}
+                      categories={treatment.categories.map(cat => ({
+                        depth2_id: typeof cat === 'object' ? (cat as any).depth2_id || 0 : 0,
+                        depth2_name: typeof cat === 'object' ? (cat as any).depth2_name : cat,
+                        depth3_list: []
+                      }))}
                       is_advertised={treatment.is_advertised}
                       is_recommended={treatment.is_recommended}
+                      total_count={treatment.total_count}
+                      has_next_page={treatment.has_next_page}
                     />
                   ))}
                 </div>
@@ -837,7 +912,7 @@ export default function MyPage() {
                   <div className="mt-8 text-center">
                     <Button
                       variant="outline"
-                      onClick={handleLoadMoreLiked}
+                      onClick={handleLoadMore}
                       disabled={isLoadingLiked}
                       className="w-full md:w-[200px]"
                     >
@@ -864,7 +939,7 @@ export default function MyPage() {
           return (
             <>
               <h3 className="text-lg font-medium mb-4">
-                찜한 병원 {likedHospitals[0]?.total_count || 0}개
+                찜한 병원 {likedHospitals[0]?.total_count ?? 0}개
               </h3>
               {likedHospitals && likedHospitals.length > 0 ? (
                 <>
@@ -872,7 +947,7 @@ export default function MyPage() {
                     {likedHospitals.map((hospital) => (
                       <ClinicCard
                         key={hospital.id}
-                        id={hospital.id}
+                        id={Number(hospital.id)}
                         title={hospital.title}
                         description={hospital.description}
                         image={hospital.image}
@@ -884,7 +959,8 @@ export default function MyPage() {
                         isRecommended={hospital.isRecommended}
                         isAd={hospital.isAd}
                         isMember={hospital.isMember}
-                        disableLink={false}
+                        disableLink={hospital.disableLink}
+                        isLiked={hospital.isLiked}
                       />
                     ))}
                   </div>
@@ -921,7 +997,7 @@ export default function MyPage() {
           return (
             <>
               <h3 className="text-lg font-medium mb-4">
-                찜한 리뷰 {likedReviews[0]?.total_count || 0}개
+                찜한 리뷰 {likedReviews[0]?.total_count ?? 0}개
               </h3>
               {likedReviews && likedReviews.length > 0 ? (
                 <>
@@ -929,21 +1005,22 @@ export default function MyPage() {
                     {likedReviews.map((review) => (
                       <ReviewCard
                         key={review.id}
-                        id={review.id}
-                        beforeImage={review.beforeImage}
-                        afterImage={review.afterImage}
+                        id={Number(review.id)}
+                        beforeImage={review.before_image}
+                        afterImage={review.after_image}
+                        author={review.author_name}
+                        authorImage={review.author_image}
                         rating={review.rating}
                         content={review.content}
-                        author={review.author}
-                        authorImage={review.authorImage}
-                        date={review.date}
-                        treatmentName={review.treatmentName}
+                        date={review.created_at}
+                        treatmentName={review.treatment_name}
                         categories={review.categories}
-                        isAuthenticated={review.isAuthenticated}
+                        isAuthenticated={true}
                         location={review.location}
                         clinicName={review.clinicName}
-                        commentCount={review.commentCount}
-                        viewCount={review.viewCount}
+                        commentCount={review.comment_count}
+                        viewCount={review.view_count}
+                        likeCount={review.like_count || 0}
                       />
                     ))}
                   </div>
@@ -981,27 +1058,26 @@ export default function MyPage() {
           return (
             <>
               <h3 className="text-lg font-medium mb-4">
-                찜한 게시물 {likedPosts[0]?.total_count || 0}개
+                찜한 게시물 {likedPosts[0]?.total_count ?? 0}개
               </h3>
               {likedPosts && likedPosts.length > 0 ? (
                 <>
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                     {likedPosts.map((post) => (
-                      <BlogCard
+                      <PostCard
                         key={post.id}
-                        id={post.id.toString()}
                         title={post.title}
                         content={post.content}
-                        thumbnail={post.thumbnail_url}
+                        thumbnail={post.thumbnail}
                         author={{
                           name: post.author_name || 'Unknown',
-                          avatar: post.author_avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=1'
+                          avatar: post.author_avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=1'
                         }}
-                        date={new Date(post.created_at).toLocaleDateString()}
-                        tags={post.tags?.map(tag => tag.name) || []}
-                        likes={post.like_count || 0}
-                        comments={post.comment_count || 0}
-                        views={post.view_count || 0}
+                        date={new Date(post.date).toLocaleDateString()}
+                        tags={post.tags}
+                        likes={post.likes}
+                        comments={post.comments}
+                        views={post.views}
                       />
                     ))}
                   </div>
@@ -1059,7 +1135,7 @@ export default function MyPage() {
       if (error) throw error
 
       if (data) {
-        const formattedData = data.map(review => ({
+        const formattedData = data.map((review: any) => ({
           id: review.id,
           beforeImage: review.before_image || '',
           afterImage: review.after_image || '',
@@ -1067,9 +1143,9 @@ export default function MyPage() {
           content: review.content || '',
           author: review.author_name || '',
           authorImage: review.author_image || '',
-          date: review.created_at,
+          date: review.created_at ? new Date(review.created_at).toLocaleDateString() : '',
           treatmentName: review.treatment_name || '',
-          categories: review.categories?.map(cat => cat.depth2_name) || [],
+          categories: review.categories?.map((cat: any) => cat.depth2_name) || [],
           isAuthenticated: true,
           location: review.location || '',
           clinicName: review.hospital_name || '',
@@ -1153,9 +1229,8 @@ export default function MyPage() {
   return (
     <main className="min-h-screen">
       <div className="container mx-auto px-4 py-8">
-        {/* 페이지 제목 */}
         <h1 className="text-2xl font-bold mb-6">My Page</h1>
-
+      
         {/* 내 정보 섹션 */}
         <div className="mb-12">
           <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
@@ -1164,90 +1239,91 @@ export default function MyPage() {
           </h2>
           <div className="space-y-6">
             {/* 프로필 및 기본 정보 */}
-            <div className="flex items-center gap-4">
-              <div className="relative w-20 h-20">
-                {isUploading ? (
-                  <div className="rounded-full w-full h-full border-2 border-gray-200 bg-gray-100 flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500" />
-                  </div>
-                ) : (
-                  <>
-                    {profileData?.avatar_url ? (
-                      <img
-                        src={profileData.avatar_url}
-                        alt="Profile"
-                        className="rounded-full w-full h-full object-cover border-2 border-gray-200"
-                      />
-                    ) : (
-                      <div className="rounded-full w-full h-full border-2 border-gray-200 bg-blue-100 flex items-center justify-center">
-                        <span className="text-2xl font-semibold text-blue-600">
-                          {userNickname 
-                            ? userNickname.charAt(0).toUpperCase()
-                            : userEmail.charAt(0).toUpperCase()
-                          }
-                        </span>
-                      </div>
-                    )}
-                    <input
-                      type="file"
-                      ref={fileInputRef}
-                      onChange={handleFileSelect}
-                      accept="image/*"
-                      className="hidden"
-                      capture="environment"
-                    />
-                    <button 
-                      className="absolute bottom-0 right-0 w-6 h-6 bg-white rounded-full border-2 border-gray-200 flex items-center justify-center cursor-pointer hover:bg-gray-100"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={isUploading}
-                    >
-                      <Pencil className="w-3 h-3 text-gray-500" />
-                    </button>
-                  </>
-                )}
-              </div>
-              <div className="flex-1">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="relative">
-                    <label className="text-sm text-gray-500 mb-1 block">E-mail</label>
-                    <div className="flex items-center">
-                      <input
-                        type="email"
-                        value={userEmail}
-                        disabled
-                        className="w-full px-3 py-2 bg-gray-50 border rounded-md text-gray-700"
-                      />
+            <div className="bg-white p-6 rounded-lg border">
+              <div className="flex items-center gap-4">
+                <div className="relative w-20 h-20">
+                  {isUploading ? (
+                    <div className="rounded-full w-full h-full border-2 border-gray-200 bg-gray-100 flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500" />
                     </div>
-                  </div>
-                  <div className="relative">
-                    <label className="text-sm text-gray-500 mb-1 block">Nick Name</label>
-                    <div className="flex items-center relative">
-                      {isEditingNickname ? (
-                        <div className="w-full">
-                          <input
-                            type="text"
-                            value={editingNickname}
-                            onChange={(e) => {
-                              setEditingNickname(e.target.value)
-                              setNicknameError('')  // 입력 시 에러 메시지 초기화
-                            }}
-                            onKeyDown={handleNicknameEdit}
-                            onBlur={() => {
-                              if (!nicknameError) {  // 에러가 없을 때만 편집 모드 종료
-                                setIsEditingNickname(false)
-                              }
-                            }}
-                            className={`w-full px-3 py-2 bg-white border rounded-md text-gray-700 
-                              ${nicknameError ? 'border-red-500' : 'border-gray-200'}`}
-                            autoFocus
-                          />
-                          {nicknameError && (
-                            <p className="text-red-500 text-xs mt-1">{nicknameError}</p>
-                          )}
-                        </div>
+                  ) : (
+                    <>
+                      {profileData?.avatar_url ? (
+                        <img
+                          src={profileData.avatar_url}
+                          alt="Profile"
+                          className="rounded-full w-full h-full object-cover border-2 border-gray-200"
+                        />
                       ) : (
-                        <>
-                          <input
+                        <div className="rounded-full w-full h-full border-2 border-gray-200 bg-blue-100 flex items-center justify-center">
+                          <span className="text-2xl font-semibold text-blue-600">
+                            {userNickname 
+                              ? userNickname.charAt(0).toUpperCase()
+                              : userEmail.charAt(0).toUpperCase()
+                            }
+                          </span>
+                        </div>
+                      )}
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleFileSelect}
+                        accept="image/*"
+                        className="hidden"
+                        capture="environment"
+                      />
+                      <button 
+                        className="absolute bottom-0 right-0 w-6 h-6 bg-white rounded-full border-2 border-gray-200 flex items-center justify-center cursor-pointer hover:bg-gray-100"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isUploading}
+                      >
+                        <Pencil className="w-3 h-3 text-gray-500" />
+                      </button>
+                    </>
+                  )}
+                </div>
+                <div className="flex-1">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="relative">
+                      <label className="text-sm text-gray-500 mb-1 block">E-mail</label>
+                      <div className="flex items-center">
+                        <input
+                          type="email"
+                          value={userEmail}
+                          disabled
+                          className="w-full px-3 py-2 bg-gray-50 border rounded-md text-gray-700"
+                        />
+                      </div>
+                    </div>
+                    <div className="relative">
+                      <label className="text-sm text-gray-500 mb-1 block">Nick Name</label>
+                      <div className="flex items-center relative">
+                        {isEditingNickname ? (
+                          <div className="w-full">
+                            <input
+                              type="text"
+                              value={editingNickname}
+                              onChange={(e) => {
+                                setEditingNickname(e.target.value)
+                                setNicknameError('')  // 입력 시 에러 메시지 초기화
+                              }}
+                              onKeyDown={handleNicknameEdit}
+                              onBlur={() => {
+                                if (!nicknameError) {  // 에러가 없을 때만 편집 모드 종료
+                                  setIsEditingNickname(false)
+                                }
+                              }}
+                              className={`w-full px-3 py-2 bg-white border rounded-md text-gray-700 
+                                ${nicknameError ? 'border-red-500' : 'border-gray-200'}`}
+                              autoFocus
+                            />
+                            {nicknameError && (
+                              <p className="text-red-500 text-xs mt-1">{nicknameError}</p>
+                            )}
+                          </div>
+                        ) : (
+                          <>
+                            <input
                             type="text"
                             value={userNickname}
                             disabled
@@ -1262,37 +1338,38 @@ export default function MyPage() {
                           </button>
                         </>
                       )}
+                      </div>
                     </div>
-                  </div>
-                  <div className="relative">
-                    <label className="text-sm text-gray-500 mb-1 block">Phone Number</label>
-                    <div className="flex items-center relative">
-                      {isEditingPhone ? (
-                        <input
-                          type="tel"
-                          value={editingPhone}
-                          onChange={(e) => setEditingPhone(e.target.value)}
-                          onKeyDown={handlePhoneEdit}
-                          onBlur={() => setIsEditingPhone(false)}
-                          className="w-full px-3 py-2 bg-white border rounded-md text-gray-700"
-                          autoFocus
-                        />
-                      ) : (
-                        <>
+                    <div className="relative">
+                      <label className="text-sm text-gray-500 mb-1 block">Phone Number</label>
+                      <div className="flex items-center relative">
+                        {isEditingPhone ? (
                           <input
                             type="tel"
-                            value={userPhone}
-                            disabled
-                            className="w-full px-3 py-2 bg-gray-50 border rounded-md text-gray-700"
+                            value={editingPhone}
+                            onChange={(e) => setEditingPhone(e.target.value)}
+                            onKeyDown={handlePhoneEdit}
+                            onBlur={() => setIsEditingPhone(false)}
+                            className="w-full px-3 py-2 bg-white border rounded-md text-gray-700"
+                            autoFocus
                           />
-                          <button 
-                            className="absolute right-3 top-1/2 -translate-y-1/2 hover:bg-gray-100 p-1 rounded-full transition-colors"
-                            onClick={() => setIsEditingPhone(true)}
-                          >
-                            <Edit3 className="w-4 h-4 text-gray-400 hover:text-blue-500" />
-                          </button>
-                        </>
-                      )}
+                        ) : (
+                          <>
+                            <input
+                              type="tel"
+                              value={userPhone}
+                              disabled
+                              className="w-full px-3 py-2 bg-gray-50 border rounded-md text-gray-700"
+                            />
+                            <button 
+                              className="absolute right-3 top-1/2 -translate-y-1/2 hover:bg-gray-100 p-1 rounded-full transition-colors"
+                              onClick={() => setIsEditingPhone(true)}
+                            >
+                              <Edit3 className="w-4 h-4 text-gray-400 hover:text-blue-500" />
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1306,7 +1383,7 @@ export default function MyPage() {
                 <div>
                   <p className="text-sm text-gray-500 mb-2">부위</p>
                   <div className="flex flex-wrap gap-2">
-                    {bodyParts.map((category) => (
+                    {bodyParts.map((category: CategoryData) => (
                       <button
                         key={category.id}
                         onClick={(e) => {
@@ -1339,7 +1416,7 @@ export default function MyPage() {
                 <div>
                   <p className="text-sm text-gray-500 mb-2">시술방법</p>
                   <div className="flex flex-wrap gap-2">
-                    {treatmentMethods.map((category) => (
+                    {treatmentMethods.map((category: CategoryData) => (
                       <button
                         key={category.id}
                         onClick={(e) => {
@@ -1382,7 +1459,7 @@ export default function MyPage() {
                 <div className="w-full">
                   {/* 도시 선택 버튼들 */}
                   <div className="flex flex-wrap gap-2">
-                    {cities.map((city) => (
+                    {cities.map((city: City) => (
                       <button
                         key={city.id}
                         onClick={(e) => {
@@ -1465,27 +1542,28 @@ export default function MyPage() {
             {activityTab === 'Reviews' ? (
               <>
                 <h3 className="text-lg font-medium mb-4">
-                  내가 쓴 후기 {myReviews[0]?.total_count || 0}개
+                  내가 쓴 후기 {myReviews[0]?.total_count ?? 0}개
                 </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {myReviews.map((review) => (
                       <ReviewCard
                         key={review.id}
-                        id={review.id}
-                        beforeImage={review.beforeImage}
-                        afterImage={review.afterImage}
+                        id={Number(review.id)}
+                        beforeImage={review.before_image}
+                        afterImage={review.after_image}
+                        author={review.author_name}
+                        authorImage={review.author_image}
                         rating={review.rating}
                         content={review.content}
-                        author={review.author}
-                        authorImage={review.authorImage}
-                        date={review.date}
-                        treatmentName={review.treatmentName}
+                        date={review.created_at}
+                        treatmentName={review.treatment_name}
                         categories={review.categories}
-                        isAuthenticated={review.isAuthenticated}
+                        isAuthenticated={true}
                         location={review.location}
                         clinicName={review.clinicName}
-                        commentCount={review.commentCount}
-                        viewCount={review.viewCount}
+                        commentCount={review.comment_count}
+                        viewCount={review.view_count}
+                        likeCount={review.like_count || 0}
                       />
                     ))}
                   </div>
@@ -1507,7 +1585,7 @@ export default function MyPage() {
             ) : (
               <>
                 <h3 className="text-lg font-medium mb-4">
-                  내가 쓴 댓글 {myComments[0]?.total_count || 0}개
+                  내가 쓴 댓글 {myComments[0]?.total_count ?? 0}개
                 </h3>
                 <div className="space-y-4">
                   {myComments.map((comment) => (
@@ -1554,6 +1632,7 @@ export default function MyPage() {
             )}
           </div>
         </div>
+        
       </div>
     </main>
   )

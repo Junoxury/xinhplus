@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { supabase } from '@/lib/supabase'
 import { TreatmentBanner } from '@/components/treatments/TreatmentBanner'
 import { TreatmentFilter } from '@/components/treatments/TreatmentFilter'
@@ -10,6 +10,7 @@ import { CategorySection } from '@/components/treatments/CategorySection'
 import Link from 'next/link'
 import { TreatmentCard } from '@/components/treatments/TreatmentCard'
 import { useSearchParams } from 'next/navigation'
+import { Category, SubCategory } from '@/components/treatments/CategorySection'
 
 // 시술 데이터 타입 정의
 interface Treatment {
@@ -48,8 +49,8 @@ interface Treatment {
 // 필터 타입 정의 수정
 interface TreatmentFilters {
   hospital_id?: number
-  depth2_category_id?: number
-  depth3_category_id?: number
+  depth2_category_id?: number | null
+  depth3_category_id?: number | null
   is_advertised?: boolean
   is_recommended?: boolean
   city_id?: number | null
@@ -67,7 +68,15 @@ interface CategorySelectParams {
   subCategoryId?: number | null;  // depth3 카테고리 ID
 }
 
-export default function TreatmentPage() {
+interface CategorySelection {
+  bodyPartId: number | null;
+  treatmentId: number | null;
+  bodyPartSubId: number | null;
+  treatmentSubId: number | null;
+}
+
+// TreatmentContent 컴포넌트로 기존 내용을 이동
+const TreatmentContent = () => {
   const [treatments, setTreatments] = useState<Treatment[]>([])
   const [loading, setLoading] = useState(false)
   const [page, setPage] = useState(1)
@@ -87,19 +96,16 @@ export default function TreatmentPage() {
   })
 
   // CategorySection의 initialSelection도 URL 파라미터 기반으로 초기화
-  const [categorySelection, setCategorySelection] = useState(() => {
-    const depth2Id = searchParams.get('depth2')
-    return {
-      bodyPartId: null,
-      treatmentId: null,
-      bodyPartSubId: null,
-      treatmentSubId: null
-    }
-  })
+  const [categorySelection, setCategorySelection] = useState<CategorySelection>(() => ({
+    bodyPartId: null,
+    treatmentId: null,
+    bodyPartSubId: null,
+    treatmentSubId: null
+  }))
 
   // 카테고리 데이터를 위한 상태 추가
-  const [bodyPartsData, setBodyPartsData] = useState({ categories: [], subCategories: [] })
-  const [treatmentMethodsData, setTreatmentMethodsData] = useState({ categories: [], subCategories: [] })
+  const [bodyPartsData, setBodyPartsData] = useState<{ categories: Category[]; subCategories: SubCategory[] }>({ categories: [], subCategories: [] })
+  const [treatmentMethodsData, setTreatmentMethodsData] = useState<{ categories: Category[]; subCategories: SubCategory[] }>({ categories: [], subCategories: [] })
 
   // 카테고리 데이터 로드
   useEffect(() => {
@@ -403,12 +409,16 @@ export default function TreatmentPage() {
               onFilterChange={handleFilterChange}
               hideMemberOption={true}
               initialFilters={{
-                cityId: filters.city_id,
+                cityId: filters.city_id || null,
+                bodyPartId: categorySelection.bodyPartId,
+                treatmentId: categorySelection.treatmentId,
+                bodyPartSubId: categorySelection.bodyPartSubId,
+                treatmentSubId: categorySelection.treatmentSubId,
                 options: {
-                  is_recommended: filters.is_recommended || false,
+                  is_advertised: filters.is_advertised || false,
                   has_discount: filters.is_discounted || false,
                   is_member: false,
-                  is_advertised: filters.is_advertised || false
+                  is_recommended: filters.is_recommended || false
                 },
                 priceRange: [filters.price_from || 0, filters.price_to || 100000000]
               }}
@@ -482,12 +492,16 @@ export default function TreatmentPage() {
                   isMobile={true}
                   hideMemberOption={true}
                   initialFilters={{
-                    cityId: filters.city_id,
+                    cityId: filters.city_id || null,
+                    bodyPartId: categorySelection.bodyPartId,
+                    treatmentId: categorySelection.treatmentId,
+                    bodyPartSubId: categorySelection.bodyPartSubId,
+                    treatmentSubId: categorySelection.treatmentSubId,
                     options: {
-                      is_recommended: filters.is_recommended || false,
+                      is_advertised: filters.is_advertised || false,
                       has_discount: filters.is_discounted || false,
                       is_member: false,
-                      is_advertised: filters.is_advertised || false
+                      is_recommended: filters.is_recommended || false
                     },
                     priceRange: [filters.price_from || 0, filters.price_to || 100000000]
                   }}
@@ -498,5 +512,18 @@ export default function TreatmentPage() {
         </div>
       </div>
     </main>
+  )
+}
+
+// 메인 페이지 컴포넌트
+export default function TreatmentPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-pulse">Loading...</div>
+      </div>
+    }>
+      <TreatmentContent />
+    </Suspense>
   )
 } 

@@ -21,6 +21,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { Suspense } from 'react'
 
 interface ReviewDetail {
   id: number
@@ -83,7 +84,14 @@ interface ReviewDetail {
 // 상수 추가
 const HEADER_HEIGHT = 64; // 헤더 높이
 
-export default function ReviewPage() {
+// 유틸리티 함수 추가 (컴포넌트 외부에)
+const getInitial = (name: string | null | undefined): string => {
+  if (!name) return '?';
+  return name.split('@')[0].charAt(0).toUpperCase();
+};
+
+// ReviewContent 컴포넌트로 기존 내용을 이동
+const ReviewContent = () => {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [selectedImage, setSelectedImage] = useState<{src: string, alt: string} | null>(null)
@@ -273,7 +281,7 @@ export default function ReviewPage() {
         // 현재 사용자의 프로필 정보를 포함한 새 댓글 객체 생성
         const newComment = {
           ...data,
-          author_name: currentUserProfile?.nickname || currentUserProfile?.email || '',
+          author_name: getInitial(currentUserProfile?.nickname || currentUserProfile?.email),
           author_image: currentUserProfile?.avatar_url || null,
           replies: []
         };
@@ -377,7 +385,7 @@ export default function ReviewPage() {
         // 현재 사용자의 프로필 정보를 포함한 새 답글 객체 생성
         const newReply = {
           ...data,
-          author_name: currentUserProfile?.nickname || currentUserProfile?.email || '',
+          author_name: getInitial(currentUserProfile?.nickname || currentUserProfile?.email),
           author_image: currentUserProfile?.avatar_url || null
         };
 
@@ -524,7 +532,7 @@ export default function ReviewPage() {
                     />
                   ) : (
                     <span className="text-pink-600 font-medium">
-                      {reviewData.author_name.split('@')[0].charAt(0).toUpperCase()}
+                      {getInitial(reviewData.author_name)}
                     </span>
                   )}
                 </div>
@@ -702,7 +710,7 @@ export default function ReviewPage() {
                       <div className="flex items-center gap-4">
                         <div className="flex items-center">
                           <Star className="w-4 h-4 text-yellow-400 fill-current" />
-                          <span className="ml-1 text-sm">{reviewData.treatment_rating}</span>
+                          <span className="ml-1 text-sm">{reviewData.treatment_discount_rate}</span>
                         </div>
                         <div className="flex items-center">
                           <MessageCircle className="w-4 h-4 text-gray-400" />
@@ -752,8 +760,7 @@ export default function ReviewPage() {
                     />
                   ) : (
                     <span className="text-pink-600 font-medium">
-                      {(currentUserProfile?.nickname || currentUserProfile?.email || '')
-                        .split('@')[0].charAt(0).toUpperCase()}
+                      {getInitial(currentUserProfile?.nickname || currentUserProfile?.email)}
                     </span>
                   )}
                 </div>
@@ -785,7 +792,7 @@ export default function ReviewPage() {
                           />
                         ) : (
                           <span className="text-pink-600 font-medium">
-                            {comment.author_name.split('@')[0].charAt(0).toUpperCase()}
+                            {getInitial(comment.author_name)}
                           </span>
                         )}
                       </div>
@@ -850,8 +857,7 @@ export default function ReviewPage() {
                                   />
                                 ) : (
                                   <span className="text-pink-600 font-medium text-sm">
-                                    {(currentUserProfile?.nickname || currentUserProfile?.email || '')
-                                      .split('@')[0].charAt(0).toUpperCase()}
+                                    {getInitial(currentUserProfile?.nickname || currentUserProfile?.email)}
                                   </span>
                                 )}
                               </div>
@@ -883,7 +889,7 @@ export default function ReviewPage() {
                         )}
 
                         {/* 답글 목록 */}
-                        {comment.replies?.length > 0 && (
+                        {comment.replies && comment.replies.length > 0 && (
                           <div className="mt-4 pl-8 space-y-4">
                             {comment.replies.map((reply) => (
                               <div key={reply.id} className="flex gap-4">
@@ -896,7 +902,7 @@ export default function ReviewPage() {
                                     />
                                   ) : (
                                     <span className="text-pink-600 font-medium text-sm">
-                                      {reply.author_name.split('@')[0].charAt(0).toUpperCase()}
+                                      {getInitial(reply.author_name)}
                                     </span>
                                   )}
                                 </div>
@@ -1044,5 +1050,18 @@ export default function ReviewPage() {
         </>
       )}
     </>
+  )
+}
+
+// 메인 페이지 컴포넌트
+export default function ReviewPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-pulse">Loading...</div>
+      </div>
+    }>
+      <ReviewContent />
+    </Suspense>
   )
 } 

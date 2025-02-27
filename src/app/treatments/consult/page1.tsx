@@ -85,10 +85,10 @@ export default function ConsultPage() {
               {beautyCategories.map((category) => (
                 <button
                   key={category.id}
-                  onClick={() => toggleCategory(category.id)}
+                  onClick={() => toggleCategory(String(category.id))}
                   type="button"
                   className={`px-4 py-1 rounded-full text-sm transition-colors ${
-                    selectedCategories.includes(category.id)
+                    selectedCategories.includes(String(category.id))
                       ? 'bg-pink-500 text-white'
                       : 'border border-gray-200 text-gray-700 hover:border-pink-500 hover:text-pink-500'
                   }`}

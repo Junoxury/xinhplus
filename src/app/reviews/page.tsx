@@ -25,30 +25,56 @@ interface SubCategory {
 }
 
 interface Filters {
-  cityId: number | null;  // location 대신 cityId 사용
-  rating: number;
-  categories: string[];
-  priceRange: [number, number];  // [min, max] 형태의 가격 범위 추가
+  cityId: number | null;
+  bodyPartId: number | null;
+  treatmentId: number | null;
+  bodyPartSubId: number | null;
+  treatmentSubId: number | null;
   options: {
     is_recommended: boolean;
     has_discount: boolean;
     is_member: boolean;
     is_advertised: boolean;
   };
+  priceRange: number[];
+}
+
+interface Review {
+  id: number;
+  before_image?: string;
+  after_image?: string;
+  rating?: number;
+  content?: string;
+  author_name?: string;
+  author_image?: string;
+  created_at: string;
+  treatment_name?: string;
+  categories?: {
+    depth2?: { name: string };
+    depth3?: { name: string };
+  };
+  location?: string;
+  hospital_name?: string;
+  comment_count?: number;
+  view_count?: number;
+  is_google?: boolean;
+  like_count?: number;
 }
 
 export default function ReviewPage() {
   const [filters, setFilters] = useState<Filters>({
     cityId: null,
-    rating: 0,
-    categories: [],
-    priceRange: [0, 100000000],  // 기본 가격 범위 설정
+    bodyPartId: null,
+    treatmentId: null,
+    bodyPartSubId: null,
+    treatmentSubId: null,
     options: {
       is_recommended: false,
       has_discount: false,
       is_member: false,
       is_advertised: false,
-    }
+    },
+    priceRange: [0, 100000000]
   });
 
   const [reviews, setReviews] = useState<any[]>([])
@@ -76,8 +102,15 @@ export default function ReviewPage() {
     }
   }, [])
 
-  const [bodyPartsData, setBodyPartsData] = useState({ categories: [], subCategories: [] })
-  const [treatmentMethodsData, setTreatmentMethodsData] = useState({ categories: [], subCategories: [] })
+  const [bodyPartsData, setBodyPartsData] = useState<{
+    categories: Category[];
+    subCategories: SubCategory[];
+  }>({ categories: [], subCategories: [] })
+
+  const [treatmentMethodsData, setTreatmentMethodsData] = useState<{
+    categories: Category[];
+    subCategories: SubCategory[];
+  }>({ categories: [], subCategories: [] })
 
   // 카테고리 데이터 로드
   useEffect(() => {
@@ -105,12 +138,17 @@ export default function ReviewPage() {
     fetchCategories()
   }, [])
 
-  const [selectedFilters, setSelectedFilters] = useState({
+  const [selectedFilters, setSelectedFilters] = useState<{
+    bodyPartId: number | null;
+    treatmentId: number | null;
+    bodyPartSubId: number | null;
+    treatmentSubId: number | null;
+  }>({
     bodyPartId: null,
     treatmentId: null,
     bodyPartSubId: null,
-    treatmentSubId: null
-  })
+    treatmentSubId: null,
+  });
 
   const handleCategorySelect = (categoryId: number | null, isBodyPart: boolean) => {
     console.log('Category selected:', { categoryId, isBodyPart });  // 로깅 추가
@@ -142,16 +180,24 @@ export default function ReviewPage() {
   }
 
   // 필터 변경 핸들러 수정
-  const handleFilterChange = (newFilters: Filters) => {
-    console.log('Filter changed:', newFilters);  // 필터 변경 로깅
-    
-    // cityId를 location으로 사용
-    const updatedFilters = {
-      ...newFilters,
-      cityId: newFilters.cityId ? Number(newFilters.cityId) : null  // cityId를 location으로 사용
+  const handleFilterChange = (newFilters: {
+    cityId?: number | null;
+    options: {
+      is_recommended: boolean;
+      has_discount: boolean;
+      is_member: boolean;
+      is_advertised: boolean;
     };
-    
-    console.log('Updated filters:', updatedFilters);  // 변환된 필터 로깅
+    priceRange: number[];
+  }) => {
+    const updatedFilters: Filters = {
+      ...filters,
+      ...newFilters,
+      bodyPartId: filters.bodyPartId,
+      treatmentId: filters.treatmentId,
+      bodyPartSubId: filters.bodyPartSubId,
+      treatmentSubId: filters.treatmentSubId,
+    };
     setFilters(updatedFilters);
     setPage(1);
     setReviews([]);
@@ -213,11 +259,10 @@ export default function ReviewPage() {
         console.log('Raw review data:', data)
 
         if (data) {
-          const formattedReviews = data.map(review => {
+          const formattedReviews = data.map((review: Review) => {
             // 데이터 매핑 전에 로그 추가
             console.log('Raw review data:', {
-              author_name: review.author_name,
-              email: review.email
+              author_name: review.author_name
             });
 
             // categories 처리 수정
@@ -301,8 +346,14 @@ export default function ReviewPage() {
         <CategorySection
           bodyParts={bodyPartsData.categories}
           treatmentMethods={treatmentMethodsData.categories}
-          bodyPartSubs={bodyPartsData.subCategories}
-          treatmentMethodSubs={treatmentMethodsData.subCategories}
+          bodyPartSubs={bodyPartsData.subCategories.map(sub => ({
+            ...sub,
+            name: sub.label
+          }))}
+          treatmentMethodSubs={treatmentMethodsData.subCategories.map(sub => ({
+            ...sub,
+            name: sub.label
+          }))}
           onCategorySelect={handleCategorySelect}
           onSubCategorySelect={handleSubCategorySelect}
           initialSelection={selectedFilters}

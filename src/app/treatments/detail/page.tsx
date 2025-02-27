@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react'
+import React, { Suspense } from 'react'
 import { CategoryIcon } from '@/components/category/CategoryIcon'
 import { TreatmentBanner } from '@/components/treatments/TreatmentBanner'
 import { TreatmentFilter } from '@/components/treatments/TreatmentFilter'
@@ -224,7 +224,7 @@ function HorizontalScroll({ children }: { children: React.ReactNode }) {
   const startX = useRef(0)
   const scrollLeft = useRef(0)
 
-  const onMouseDown = (e: MouseEvent) => {
+  const onMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     isDown.current = true
     if (scrollRef.current) {
       scrollRef.current.style.cursor = 'grabbing'
@@ -247,7 +247,7 @@ function HorizontalScroll({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const onMouseMove = (e: MouseEvent) => {
+  const onMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!isDown.current) return
     e.preventDefault()
     if (scrollRef.current) {
@@ -302,24 +302,36 @@ function HorizontalScroll({ children }: { children: React.ReactNode }) {
   )
 }
 
+interface Category {
+  depth2_id: number;
+  depth2_name: string;
+  depth3_list: {
+    id: number;
+    name: string;
+  }[];
+}
+
 interface Treatment {
-  id: number
-  hospital_id: number
-  hospital_name: string
-  title: string
-  summary: string
-  thumbnail_url: string
-  price: number
-  discount_price: number
-  discount_rate: number
-  rating: number
-  comment_count: number
-  view_count: number
-  like_count: number
-  is_advertised: boolean
-  is_recommended: boolean
-  is_discounted: boolean
-  is_liked: boolean
+  id: number;
+  hospital_id: number;
+  hospital_name: string;
+  title: string;
+  summary: string;
+  thumbnail_url: string;
+  price: number;
+  discount_price: number;
+  discount_rate: number;
+  rating: number;
+  comment_count: number;
+  view_count: number;
+  like_count: number;
+  is_advertised: boolean;
+  is_recommended: boolean;
+  is_discounted: boolean;
+  is_liked: boolean;
+  city_id: number;
+  city_name: string;
+  categories: Category[];
 }
 
 interface TreatmentDetail {
@@ -357,7 +369,7 @@ interface TreatmentDetail {
 }
 
 // 시술 정보 페이지
-export default function TreatmentDetailPage() {
+const TreatmentDetailContent = () => {
   const searchParams = useSearchParams()
   const id = searchParams.get('id')
   const [treatment, setTreatment] = useState<TreatmentDetail | null>(null)
@@ -488,8 +500,8 @@ export default function TreatmentDetailPage() {
 
       if (data) {
         const formattedTreatments = data
-          .filter(t => t.id !== treatment.id)
-          .map(item => ({
+          .filter((t: Treatment) => t.id !== treatment.id)
+          .map((item: Treatment) => ({
             ...item,
             rating: Number(item.rating || 0),
             comment_count: item.comment_count || 0,
@@ -553,8 +565,8 @@ export default function TreatmentDetailPage() {
 
       if (data) {
         const formattedTreatments = data
-          .filter(t => t.id !== treatment?.id)
-          .map(item => ({
+          .filter((t: Treatment) => t.id !== treatment?.id)
+          .map((item: Treatment) => ({
             ...item,
             rating: Number(item.rating || 0),
             comment_count: item.comment_count || 0,
@@ -683,7 +695,7 @@ export default function TreatmentDetailPage() {
           }
           
           // 더보기 버튼 표시 조건 수정
-          setHasMoreReviews(newReviews.length < totalCount)
+          setHasMoreReviews(newReviews.length < (totalCount || 0))
         }
       } catch (error) {
         console.error('리뷰 데이터 로드 실패:', error)
@@ -1281,5 +1293,18 @@ export default function TreatmentDetailPage() {
         </div>
       </main>
     </div>
+  )
+}
+
+// 메인 페이지 컴포넌트
+export default function TreatmentDetailPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-pulse">Loading...</div>
+      </div>
+    }>
+      <TreatmentDetailContent />
+    </Suspense>
   )
 } 

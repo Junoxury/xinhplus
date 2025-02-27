@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { Search, ChevronLeft, MessageCircle, Eye, Heart, Share2 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -158,7 +158,8 @@ function stripMarkdownAndHtml(content: string): string {
   return cleanText.length > 100 ? cleanText.slice(0, 100) + '...' : cleanText;
 }
 
-export default function PostDetailPage() {
+// PostDetailContent 컴포넌트로 기존 내용을 이동
+const PostDetailContent = () => {
   const router = useRouter()
   const searchParams = useSearchParams()
   const postId = searchParams.get('id')
@@ -310,7 +311,7 @@ export default function PostDetailPage() {
 
       if (data) {
         // 현재 포스트 제외하고 필터링
-        const filteredPosts = data.filter(p => p.id !== id);
+        const filteredPosts = data.filter((p: RelatedPost) => p.id !== id);
         setRelatedPosts(filteredPosts);
       }
     } catch (error) {
@@ -439,7 +440,7 @@ export default function PostDetailPage() {
             {post.prev_post && (
               <div 
                 className="group cursor-pointer" 
-                onClick={() => router.push(`/posts/detail?id=${post.prev_post.id}`)}
+                onClick={() => post.prev_post && router.push(`/posts/detail?id=${post.prev_post.id}`)}
               >
                 <div className="text-sm text-gray-500 mb-2">이전 글</div>
                 <div className="flex items-center gap-4">
@@ -462,7 +463,7 @@ export default function PostDetailPage() {
             {post.next_post && (
               <div 
                 className="group cursor-pointer text-right md:border-l md:pl-4" 
-                onClick={() => router.push(`/posts/detail?id=${post.next_post.id}`)}
+                onClick={() => post.next_post && router.push(`/posts/detail?id=${post.next_post.id}`)}
               >
                 <div className="text-sm text-gray-500 mb-2">다음 글</div>
                 <div className="flex items-center gap-4 justify-end">
@@ -516,5 +517,18 @@ export default function PostDetailPage() {
         )}
       </div>
     </main>
+  )
+}
+
+// 메인 페이지 컴포넌트
+export default function PostDetailPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-pulse">Loading...</div>
+      </div>
+    }>
+      <PostDetailContent />
+    </Suspense>
   )
 } 

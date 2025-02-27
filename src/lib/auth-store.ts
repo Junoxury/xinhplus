@@ -1,4 +1,4 @@
-import create from 'zustand'
+import { create } from 'zustand'
 import { supabase } from './supabase'
 
 interface UserProfile {
@@ -47,7 +47,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
         profile: {
           id: profileData.id,
           city_id: profileData.city_id,
-          city_name: profileData.cities?.name_vi,
+          city_name: profileData.cities?.[0]?.name_vi,
           preferred_categories: categoriesData.map(c => c.depth2_id)
         }
       })

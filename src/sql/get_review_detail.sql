@@ -188,6 +188,10 @@ BEGIN
     SELECT cmt_data FROM review_comments rc3 LIMIT 1
   ) rco ON true;
 
+  -- 데이터 확인을 위한 로그 추가
+  console.log('RPC 반환 데이터:', result);
+  console.log('categories 데이터:', result->>'categories');
+
   RETURN result;
 END;
 $$;

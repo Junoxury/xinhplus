@@ -32,6 +32,8 @@ interface TreatmentCardProps {
   disableLink?: boolean
   is_liked?: boolean
   onLikeToggle?: (id: number, newState: boolean) => void
+  total_count?: number
+  has_next_page?: boolean
 }
 
 export function TreatmentCard({
@@ -51,7 +53,9 @@ export function TreatmentCard({
   is_recommended,
   disableLink,
   onLikeToggle,
-  is_liked = false
+  is_liked = false,
+  total_count,
+  has_next_page
 }: TreatmentCardProps) {
   const router = useRouter()
   const [isAuthenticated, setIsAuthenticated] = useState(false)

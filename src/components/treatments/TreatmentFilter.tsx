@@ -1,21 +1,19 @@
 import { Slider } from "@/components/ui/slider"
-import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { useState, useEffect, useCallback } from "react"
 import { X } from "lucide-react"
 import { supabase } from '@/lib/supabase'
-import { formatPrice } from '@/utils/format'
 import { Input } from "@/components/ui/input"
-import { debounce } from "lodash"
+import debounce from "lodash/debounce"
 
 interface FilterProps {
   onFilterChange: (filters: {
     cityId?: number | null;
     options: {
       is_recommended: boolean;
+      is_advertised: boolean;
       has_discount: boolean;
       is_member: boolean;
-      is_advertised: boolean;
     };
     priceRange: number[];
   }) => void;
@@ -30,6 +28,7 @@ interface FilterProps {
     bodyPartSubId: number | null;
     treatmentSubId: number | null;
     options: {
+      is_recommended: boolean;
       is_advertised: boolean;
       has_discount: boolean;
       is_member: boolean;
@@ -106,7 +105,13 @@ export function TreatmentFilter({
   const debouncedFilterChange = useCallback(
     debounce((newPriceRange: [number, number]) => {
       onFilterChange({
-        ...initialFilters,
+        cityId: initialFilters?.cityId ?? null,
+        options: {
+          is_recommended: initialFilters?.options?.is_recommended ?? false,
+          has_discount: initialFilters?.options?.has_discount ?? false,
+          is_member: initialFilters?.options?.is_member ?? false,
+          is_advertised: initialFilters?.options?.is_advertised ?? false
+        },
         priceRange: newPriceRange
       });
     }, 500),

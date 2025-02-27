@@ -1,33 +1,19 @@
 'use client'
 
-import { CategoryIcon } from '@/components/category/CategoryIcon'
 import { TreatmentBanner } from '@/components/treatments/TreatmentBanner'
 import { TreatmentFilter } from '@/components/treatments/TreatmentFilter'
 import { ClinicList } from '@/components/clinics/ClinicList'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 
 import { CategorySection } from '@/components/treatments/CategorySection'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { supabase } from '@/lib/supabase'
-import { SortOption } from '@/components/clinics/ClinicList'
 import type { User } from '@supabase/supabase-js'
 
 // 정렬 옵션 상수
-const SORT_OPTIONS = [
-  { value: 'latest', label: '최신순' },
-  { value: 'views', label: '조회순' },
-  { value: 'rating', label: '평점순' },
-  { value: 'likes', label: '좋아요순' }
-] as const
 
-type SortOption = typeof SORT_OPTIONS[number]['value']
+// 로컬에서 타입 정의
+type SortOption = 'latest' | 'views' | 'rating' | 'likes'
 
 // ClinicCard 컴포넌트에 전달할 props 타입 정의
 export interface ClinicCardProps {
@@ -50,8 +36,41 @@ export interface ClinicCardProps {
   likeCount: number;
 }
 
-// 병원 정보 페이지
-export default function ClinicPage() {
+interface CategoryData {
+  depth2?: {
+    id: number;
+    name: string;
+  };
+}
+
+interface ProcessedCategory {
+  id?: number;
+  name?: string;
+}
+
+// 파일 상단에 타입 정의 추가
+interface Clinic {
+  id: number;
+  title: string;
+  description: string;
+  image: string;
+  location: string;
+  rating: number;
+  viewCount: number;
+  categories: Array<{
+    id?: number;
+    name?: string;
+  }>;
+  isRecommended: boolean;
+  isAd: boolean;
+  isMember: boolean;
+  isGoogle: boolean;
+  isLiked: boolean;
+  likeCount: number;
+}
+
+// ClinicContent 컴포넌트로 기존 내용을 이동
+const ClinicContent = () => {
   const searchParams = useSearchParams()
   
   // 초기 상태 설정
@@ -62,6 +81,7 @@ export default function ClinicPage() {
     bodyPartSubId: searchParams.get('bodyPartSubId') ? Number(searchParams.get('bodyPartSubId')) : null,
     treatmentSubId: searchParams.get('treatmentSubId') ? Number(searchParams.get('treatmentSubId')) : null,
     options: {
+      is_recommended: false,
       is_advertised: false,
       has_discount: false,
       is_member: false
@@ -289,10 +309,10 @@ export default function ClinicPage() {
                 ? item.categories 
                 : Object.values(item.categories);
 
-              processedCategories = categoriesArray.map(cat => ({
+              processedCategories = categoriesArray.map((cat: CategoryData) => ({
                 id: cat.depth2?.id,
                 name: cat.depth2?.name
-              })).filter(cat => cat.id && cat.name);  // 유효한 데이터만 필터
+              })).filter((cat: ProcessedCategory) => cat.id && cat.name);  // 유효한 데이터만 필터
             }
           } catch (error) {
             console.error('카테고리 처리 중 오류:', error);
@@ -319,7 +339,7 @@ export default function ClinicPage() {
         })
 
         // 변환된 데이터 로깅
-        console.log('변환된 병원 데이터:', formattedClinics.map(clinic => ({
+        console.log('변환된 병원 데이터:', formattedClinics.map((clinic: ClinicCardProps) => ({
           id: clinic.id,
           title: clinic.title,
           isLiked: clinic.isLiked
@@ -353,11 +373,11 @@ export default function ClinicPage() {
   const handleFilterChange = (newFilters: any) => {
     setPage(1)
     setClinics([])
-    // 기존 카테고리 선택 상태를 유지하면서 새로운 필터 적용
     setFilters(prev => ({
       ...prev,
       cityId: newFilters.cityId,
       options: {
+        is_recommended: newFilters.options.is_recommended,
         is_advertised: newFilters.options.is_advertised,
         has_discount: newFilters.options.has_discount,
         is_member: newFilters.options.is_member
@@ -505,6 +525,7 @@ export default function ClinicPage() {
                     bodyPartSubId: filters.bodyPartSubId,
                     treatmentSubId: filters.treatmentSubId,
                     options: {
+                      is_recommended: filters.options.is_recommended,
                       is_advertised: filters.options.is_advertised,
                       has_discount: filters.options.has_discount,
                       is_member: filters.options.is_member
@@ -518,5 +539,18 @@ export default function ClinicPage() {
         </div>
       </div>
     </main>
+  )
+}
+
+// 메인 페이지 컴포넌트
+export default function ClinicPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-pulse">Loading...</div>
+      </div>
+    }>
+      <ClinicContent />
+    </Suspense>
   )
 } 

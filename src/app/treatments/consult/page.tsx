@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, Suspense } from 'react'
 import Image from 'next/image'
 import { X, Upload } from 'lucide-react'
 
@@ -15,7 +15,8 @@ const beautyCategories = [
   { id: 'face', label: '안면윤곽', selected: true },
 ]
 
-export default function ConsultPage() {
+// ConsultContent 컴포넌트로 기존 내용을 이동
+const ConsultContent = () => {
   const searchParams = useSearchParams()
   const treatment_id = searchParams.get('treatment_id')
   const [treatmentInfo, setTreatmentInfo] = useState<any>(null)
@@ -139,9 +140,9 @@ export default function ConsultPage() {
 
         // 중복 제거: id를 기준으로 unique한 카테고리만 추출
         const uniqueCategories = treatmentCategories.reduce((acc: any[], curr) => {
-          const exists = acc.find(item => item.id === curr.categories.id)
+          const exists = acc.find(item => item.id === curr.categories[0].id)
           if (!exists) {
-            acc.push(curr.categories)
+            acc.push(curr.categories[0])
           }
           return acc
         }, [])
@@ -520,5 +521,18 @@ export default function ConsultPage() {
         </div>
       </div>
     </form>
+  )
+}
+
+// 메인 페이지 컴포넌트
+export default function ConsultPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-pulse">Loading...</div>
+      </div>
+    }>
+      <ConsultContent />
+    </Suspense>
   )
 } 

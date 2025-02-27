@@ -1,3 +1,4 @@
+import { ClinicCardProps } from '@/app/clinics/page'
 import { ClinicCard } from './ClinicCard'
 import { Button } from '@/components/ui/button'
 import { Filter } from 'lucide-react'

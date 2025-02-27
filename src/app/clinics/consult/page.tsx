@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, Suspense } from 'react'
 import Image from 'next/image'
 import { X, Upload } from 'lucide-react'
 
@@ -8,8 +8,8 @@ import { useDropzone } from 'react-dropzone'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
-
-export default function ConsultPage() {
+// ConsultContent 컴포넌트로 기존 내용을 이동
+const ConsultContent = () => {
   const searchParams = useSearchParams()
   const hospital_id = searchParams.get('hospital_id')
   const [hospitalInfo, setHospitalInfo] = useState<any>(null)
@@ -412,5 +412,18 @@ export default function ConsultPage() {
         </div>
       </div>
     </form>
+  )
+}
+
+// 메인 페이지 컴포넌트
+export default function ConsultPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-pulse">Loading...</div>
+      </div>
+    }>
+      <ConsultContent />
+    </Suspense>
   )
 } 

@@ -11,6 +11,11 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 
+interface CategoryType {
+  depth2_name?: string;
+  depth2?: { name: string };
+}
+
 interface ReviewCardProps {
   id: number
   beforeImage: string
@@ -22,7 +27,7 @@ interface ReviewCardProps {
   authorImage?: string
   date: string
   treatmentName: string
-  categories: string[]
+  categories: Array<string | CategoryType>
   isAuthenticated?: boolean
   location: string
   clinicName: string
@@ -83,6 +88,35 @@ export function ReviewCard({
     }
   }, [initialIsAuthenticated])
 
+  useEffect(() => {
+    const fetchReviewData = async () => {
+      console.log('RPC 호출 전: ', { id }); // 호출 전 로그
+
+      try {
+        // 로그인 상태에 따라 user_id 설정
+        const userId = isAuthenticatedState ? (await supabase.auth.getUser()).data.user?.id : null;
+        
+        const { data, error } = await supabase.rpc('get_review_detail', { 
+          p_review_id: id,
+          p_user_id: userId 
+        });
+
+        if (error) {
+          console.error('RPC 호출 중 오류:', error);
+          return;
+        }
+
+        console.log('RPC 호출 후: ', { data }); // 호출 후 로그
+
+        // 데이터 처리 로직 추가
+      } catch (err) {
+        console.error('데이터 가져오기 중 오류:', err);
+      }
+    };
+
+    fetchReviewData();
+  }, [id, isAuthenticatedState]);
+
   const handleBeforeImageClick = (e: React.MouseEvent) => {
     if (!isAuthenticatedState) {
       e.preventDefault() // Link 이벤트 전파 방지
@@ -92,6 +126,7 @@ export function ReviewCard({
   }
 
   function formatAuthorName(name: string) {
+    if (!name) return '익명'; // name이 undefined일 경우 '익명'으로 대체
     if (name.includes('@')) {
       const localPart = name.split('@')[0];
       return localPart.length > 5 
@@ -116,7 +151,7 @@ export function ReviewCard({
           {/* After 이미지 */}
           <div className="relative w-1/2">
             <Image
-              src={afterImage}
+              src={afterImage || "/blank-image.png"}
               alt="After"
               fill
               className="object-cover"
@@ -133,7 +168,7 @@ export function ReviewCard({
           >
             <div className="relative w-full h-full">
               <Image
-                src={beforeImage}
+                src={beforeImage || "/blank-image.png"}
                 alt="Before"
                 fill
                 className={cn(
@@ -172,8 +207,8 @@ export function ReviewCard({
             <h3 className="text-lg font-bold">{treatmentName}</h3>
             <div className="flex items-center gap-2">
               <Avatar className="w-6 h-6">
-                <AvatarImage src={authorImage} alt={author} />
-                <AvatarFallback>{author[0]}</AvatarFallback>
+                <AvatarImage src={authorImage || undefined} alt={author} />
+                <AvatarFallback>{author ? author[0] : 'N/A'}</AvatarFallback>
               </Avatar>
               <span className="text-sm font-medium">
                 {formatAuthorName(author)}
@@ -185,14 +220,25 @@ export function ReviewCard({
 
           {/* 카테고리 */}
           <div className="flex flex-wrap gap-1 mb-3">
-            {categories.map((category, index) => (
-              <Badge 
-                key={index}
-                className="rounded-full text-xs px-3 py-1 bg-pink-100 hover:bg-pink-200 text-pink-800 border-0"
-              >
-                {category}
-              </Badge>
-            ))}
+            {categories.map((category, index) => {
+              // 더 자세한 로그 추가
+              console.log('ReviewCard categories:', {
+                allCategories: categories,
+                currentCategory: category,
+                parentComponent: window.location.pathname  // 어느 페이지에서 호출되었는지
+              });
+              
+              return (
+                <Badge 
+                  key={index}
+                  className="rounded-full text-xs px-3 py-1 bg-pink-100 hover:bg-pink-200 text-pink-800 border-0"
+                >
+                  {typeof category === 'string' 
+                    ? category 
+                    : category.depth2_name || category.depth2?.name || ''}
+                </Badge>
+              );
+            })}
           </div>
 
           {/* 지역 - 병원명 추가 */}

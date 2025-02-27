@@ -12,6 +12,7 @@ import { ShortCard } from '@/components/shorts/ShortCard'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { User } from '@supabase/supabase-js'
 
 // 기존 popularTreatments 배열 대신 상태로 관리
 interface PopularTreatment {
@@ -22,6 +23,7 @@ interface PopularTreatment {
   clinic: string;
   location: string;
   originalPrice: number;
+  discountPrice: number;
   discountRate: number;
   rating: number;
   reviewCount: number;
@@ -41,12 +43,12 @@ interface City {
 // 병원 타입 정의 추가
 interface Hospital {
   id: number;
-  name: string;
+  title: string;
   description: string;
-  thumbnail_url: string;
-  city_name: string;
+  image: string;
+  location: string;
   rating: number;
-  comment_count: number;
+  viewCount: number;
   categories: {
     depth2_id: number;
     depth2_name: string;
@@ -56,143 +58,30 @@ interface Hospital {
     }[];
   }[];
   is_recommended: boolean;
-  is_advertised: boolean;
-  is_member: boolean;
-  is_liked: boolean;
+  isAd: boolean;
+  isMember: boolean;
+  isLiked: boolean;
 }
 
 // 리뷰 타입 정의
 interface Review {
   id: number;
-  before_image_url: string;
-  after_image_url: string;
-  rating: number;
-  content: string;
+  beforeImage: string;
+  afterImage: string;
   author_name: string;
+  content: string;
   created_at: string;
   treatment_name: string;
   categories: string[];
-  additional_images_count: number;
-  is_locked: boolean;
   city_name: string;
   hospital_name: string;
   comment_count: number;
   view_count: number;
+  rating: number;
+  is_locked?: boolean;
 }
 
-const featuredClinics = [
-  {
-    id: '1',
-    title: 'DR.AD BEAUTY CLINIC',
-    image: 'https://web.babitalk.com/_next/image?url=https%3A%2F%2Fimages.babitalk.com%2Fimages%2F38d62b3c8d715e4091438b05bf7cd223%2Fbanner_img_1718961017.jpg&w=384&q=75',
-    description: '20년 전통의 성형외과 전문의',
-    location: 'Hanoi',
-    rating: 4.8,
-    reviewCount: 1234,
-    categories: ['Pore', 'Bottom eyelid', 'Eyelid surgery', '+8'],
-    isRecommended: true,
-    isAd: true,
-    isMember: true
-  },
-  {
-    id: '2',
-    title: '뷰티라인 성형외과',
-    image: 'https://web.babitalk.com/_next/image?url=https%3A%2F%2Fimages.babitalk.com%2Fimages%2Fd92aac925140c6a03aa0099e80362f55%2Fbanner_img_1736901184.jpg&w=384&q=75',
-    description: '자연스러운 라인 교정 전문',
-    location: 'Hanoi',
-    rating: 4.7,
-    reviewCount: 890,
-    categories: ['Nose', 'Face contouring', 'Lifting'],
-    isRecommended: true,
-    isMember: true
-  },
-  {
-    id: '3',
-    title: '미소성형외과',
-    image: 'https://web.babitalk.com/_next/image?url=https%3A%2F%2Fimages.babitalk.com%2Fimages%2F25aacb6c5c5ffe729af9b47b4f2b0773%2Fbanner_img_1732092008.jpg&w=384&q=75',
-    description: '맞춤형 성형 디자인',
-    location: 'Ho Chi Minh',
-    rating: 4.9,
-    reviewCount: 756,
-    categories: ['Eye', 'Nose', 'Face'],
-    isAd: true
-  },
-  {
-    id: '4',
-    title: '라인성형외과',
-    image: 'https://web.babitalk.com/_next/image?url=https%3A%2F%2Fimages.babitalk.com%2Fimages%2Fc72d8a826738d4b27a88c53797c3e6a4%2Fbanner_img_1720688591.jpg&w=384&q=75',
-    description: '최신 장비 보유 전문의',
-    location: 'Da Nang',
-    rating: 4.6,
-    reviewCount: 543,
-    categories: ['Skin', 'Anti-aging', 'Lifting'],
-    isRecommended: true
-  },
-  {
-    id: '5',
-    title: '뷰티클리닉',
-    image: 'https://web.babitalk.com/_next/image?url=https%3A%2F%2Fimages.babitalk.com%2Fimages%2F68f2c0df4eed8ca4376ffc27f879d925%2Fbanner_img_1732681027.jpg&w=384&q=75',
-    description: '최신 장비 보유 전문의',
-    location: 'Hanoi',
-    rating: 4.6,
-    reviewCount: 543,
-    categories: ['Dental', 'Hair', 'Skin care'],
-    isMember: true
-  }
-]
 
-const recentReviews = [
-  {
-    id: '1',
-    beforeImage: 'https://images.babitalk.com/reviews/761e1935f7c55175f7c5d542fa5eb0fb/small/0d5b1c4c7f720f698946c7f6ab08f687/0.jpg',
-    afterImage: 'https://images.babitalk.com/reviews/761e1935f7c55175f7c5d542fa5eb0fb/small/0d5b1c4c7f720f698946c7f6ab08f687/0.jpg',
-    rating: 5,
-    content: '정말 만족스러운 결과였습니다. 자연스러운 라인으로 잘 수정해주셨어요. 처음에는 걱정이 많았는데, 상담부터 수술까지 정말 꼼꼼하게 설명해주시고 케어해주셔서 안심하고 진행할 수 있었습니다. 특히 수술 후 관리도 철저히 해주셔서 회복도 빠르게 됐어요. 주변 지인들도 자연스러워 보인다고 칭찬해주셔서 정말 기분이 좋습니다. 고민하시는 분들께 적극 추천드립니다! 앞으로도 꾸준히 관리 받으러 올 예정입니다.',
-    author: '김**',
-    date: '2024.03.15',
-    treatmentName: '듀얼픽스 광대축소',
-    categories: ['Pore', 'Bottom eyelid', 'Eyelid surgery'],
-    additionalImagesCount: 4,
-    isLocked: true,
-    location: '강남구',
-    clinicName: '뷰티클리닉',
-    commentCount: 10,
-    viewCount: 1234
-  },
-  {
-    id: '2',
-    beforeImage: 'https://images.babitalk.com/reviews/11f7cd5a760501fb579c71c8568dec16/small/0d5b1c4c7f720f698946c7f6ab08f687/0.jpg',
-    afterImage: 'https://images.babitalk.com/reviews/11f7cd5a760501fb579c71c8568dec16/small/0d5b1c4c7f720f698946c7f6ab08f687/0.jpg',
-    rating: 4,
-    content: '상담부터 수술까지 친절하게 설명해주시고 결과도 좋았습니다. 눈매교정과 눈밑지방 재배치를 동시에 진행했는데, 자연스러운 라인으로 잘 수정해주셨어요. 수술 후 붓기가 걱정됐는데 회복 기간도 생각보다 빨랐고, 지금은 완전히 자연스러워졌습니다. 특히 눈밑 지방 재배치 후에 눈밑 다크서클이 개선되어서 화장 없이도 좋아 보여요. 수술 전후 관리도 꼼꼼히 해주셔서 감사합니다.',
-    author: '이**',
-    date: '2024.03.14',
-    treatmentName: '눈매교정',
-    categories: ['Eyelid surgery', 'Bottom eyelid'],
-    additionalImagesCount: 2,
-    location: '강남구',
-    clinicName: '뷰티클리닉',
-    commentCount: 5,
-    viewCount: 856
-  },
-  {
-    id: '3',
-    beforeImage: 'https://images.babitalk.com/reviews/a6d4fcd97737723d01a6af30c8d10407/small/0d5b1c4c7f720f698946c7f6ab08f687/0.jpg',
-    afterImage: 'https://images.babitalk.com/reviews/a6d4fcd97737723d01a6af30c8d10407/small/0d5b1c4c7f720f698946c7f6ab08f687/0.jpg',
-    rating: 4,
-    content: '20대 후반부터 눈가 주름이 신경쓰여서 고민하다가 방문했는데, 정말 만족스러운 결과를 얻었습니다. 선생님께서 제 얼굴형과 특징을 고려해서 자연스러운 눈매를 만들어주셨어요. 수술 과정도 생각보다 편안했고, 회복도 빨랐습니다. 수술 후 붓기 관리부터 실밥 제거까지 꼼꼼하게 챙겨주셔서 감사했어요. 이제는 거울을 볼 때마다 기분이 좋아집니다. 다른 시술도 이곳에서 받고 싶어요!',
-    author: '이**',
-    date: '2024.03.14',
-    treatmentName: '눈매교정',
-    categories: ['Eyelid surgery', 'Bottom eyelid'],
-    additionalImagesCount: 3,
-    isLocked: true,
-    location: '강남구',
-    clinicName: '뷰티클리닉',
-    commentCount: 7,
-    viewCount: 2431
-  }
-]
 
 // shorts 데이터 추가
 const popularShorts = [
@@ -239,13 +128,6 @@ const popularShorts = [
 ]
 
 // TOP5 데이터 추가
-const topSearches = [
-  "1. 듀얼픽스 광대축소",
-  "2. 눈매교정",
-  "3. 이마 지방이식",
-  "4. 코끝 성형",
-  "5. 피부 재생"
-];
 
 function HorizontalScroll({ children }: { children: React.ReactNode }) {
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -416,20 +298,20 @@ export default function HomePage() {
         // RPC 응답을 TreatmentCard props 형식으로 변환
         const formattedTreatments = data.map((item: any) => ({
           id: item.id,
+          image: item.thumbnail_url,
           title: item.title,
-          summary: item.summary,
-          hospital_name: item.hospital_name,
-          city_name: item.city_name,
-          thumbnail_url: item.thumbnail_url,
-          price: item.price,
-          discount_price: item.discount_price,
-          discount_rate: item.discount_rate,
+          description: item.summary,
+          clinic: item.hospital_name,
+          location: item.city_name,
+          originalPrice: item.price,
+          discountPrice: item.discount_price,
+          discountRate: item.discount_rate,
           rating: Number(item.rating),
-          comment_count: item.comment_count,
+          reviewCount: item.comment_count,
           categories: item.categories || [],
-          is_advertised: item.is_advertised,
-          is_recommended: item.is_recommended,
-          is_liked: item.is_liked  // 좋아요 상태 추가
+          isAd: item.is_advertised,
+          isNew: item.is_recommended,
+          is_liked: item.is_liked
         }))
 
         setPopularTreatments(formattedTreatments)
@@ -559,9 +441,6 @@ export default function HomePage() {
     ? localPopularTreatments[selectedLocation] 
     : localPopularTreatments[0] || []  // 선택된 도시가 없을 때는 전체 데이터 사용
 
-  const handleCategoryClick = (item: any) => {
-    router.push(`/treatments?depth2=${item.id}`)
-  }
 
   // 현재 로그인한 사용자 정보 가져오기
   useEffect(() => {
@@ -629,7 +508,7 @@ export default function HomePage() {
         })
 
         // is_liked 값만 따로 확인
-        console.log('각 병원의 is_liked 값:', data?.map(item => ({
+        console.log('각 병원의 is_liked 값:', data?.map((item: any) => ({
           id: item.id,
           hospital_name: item.hospital_name,
           is_liked: item.is_liked,
@@ -644,10 +523,10 @@ export default function HomePage() {
                 ? item.categories 
                 : Object.values(item.categories);
 
-              processedCategories = categoriesArray.map(cat => ({
+              processedCategories = categoriesArray.map((cat: any) => ({
                 id: cat.depth2?.id,
                 name: cat.depth2?.name
-              })).filter(cat => cat.id && cat.name);
+              })).filter((cat: any) => cat.id && cat.name);
             }
           } catch (error) {
             console.error('카테고리 처리 중 오류:', error);
@@ -657,7 +536,7 @@ export default function HomePage() {
             id: Number(item.id),
             title: item.hospital_name,
             description: item.description || '',
-            image: item.thumbnail_url || '/images/placeholder.png',
+            image: item.thumbnail_url,
             location: item.city_name,
             rating: Number(item.average_rating || 0),
             viewCount: item.view_count || 0,
@@ -665,12 +544,12 @@ export default function HomePage() {
             isRecommended: Boolean(item.is_recommended),
             isAd: Boolean(item.is_advertised),
             isMember: Boolean(item.is_member),
-            isLiked: Boolean(item.is_liked)  // like_count 제거하고 is_liked만 유지
+            isLiked: Boolean(item.is_liked)
           }
         })
 
         // 변환된 데이터의 isLiked 값 확인
-        console.log('변환된 isLiked 값:', formattedClinics.map(clinic => ({
+        console.log('변환된 isLiked 값:', formattedClinics.map((clinic: any) => ({
           id: clinic.id,
           title: clinic.title,
           isLiked: clinic.isLiked
@@ -697,27 +576,49 @@ export default function HomePage() {
 
         if (error) throw error;
 
-        // RPC 응답을 기존 ReviewCard 형식에 맞게 변환
-        const formattedReviews = data.map((item: any) => ({
-          id: item.id,
-          beforeImage: item.before_image || '/images/placeholder.png',
-          afterImage: item.after_image || '/images/placeholder.png',
-          rating: Number(item.rating || 0),
-          content: item.content || '',
-          author: item.author_name || '익명',
-          date: new Date(item.created_at).toLocaleDateString(),
-          treatmentName: item.title || '',
-          categories: Array.isArray(item.categories) ? item.categories : [],
-          additionalImagesCount: Number(item.additional_images_count || 0),
+        // 1. RPC 응답 데이터 확인
+        console.log('1. RPC 원본 데이터:', {
+          전체: data,
+          첫번째리뷰: data[0],
+          이미지필드: {
+             beforeImage: data[0]?.before_image,
+             afterImage: data[0]?.after_image
+           }
+        });
 
-          location: item.location || '',
-          clinicName: item.hospital_name || '',
-          commentCount: Number(item.comment_count || 0),
-          viewCount: Number(item.view_count || 0)
-        }));
+        const formattedReviews = data.map((item: any) => {
+          // 2. 각 아이템 변환 전 확인
+          console.log('2. 변환 전 아이템:', {
+            id: item.id,
+            before_image: item.before_image,
+            after_image: item.after_image
+          });
+
+          const formatted = {
+            id: item.id,
+            beforeImage: item.before_image,    // before_image를 beforeImage로 변환
+            afterImage: item.after_image,      // after_image를 afterImage로 변환
+            author_name: item.author_name,
+            content: item.content,
+            created_at: item.created_at,
+            treatment_name: item.title || '',
+            categories: item.categories ? [item.categories.depth2.name] : [],
+            city_name: item.city_name,
+            hospital_name: item.hospital_name,
+            comment_count: Number(item.comment_count || 0),
+            view_count: Number(item.view_count || 0),
+            rating: item.rating
+          };
+
+          // 3. 변환 후 확인
+          console.log('3. 변환 후 데이터:', formatted);
+          return formatted;
+        });
+
+        // 4. 최종 데이터 확인
+        console.log('4. ReviewCard에 전달될 데이터:', formattedReviews[0]);
 
         setLatestReviews(formattedReviews);
-
       } catch (error) {
         console.error('실시간 후기 데이터 로드 실패:', error);
       }
@@ -777,7 +678,7 @@ export default function HomePage() {
     // 인기 시술 업데이트
     setPopularTreatments(prev => {
       const updated = prev.map(treatment => 
-        treatment.id === treatmentId 
+        Number(treatment.id) === treatmentId  // id를 Number로 변환하여 비교
           ? { ...treatment, is_liked: newState }
           : treatment
       )
@@ -789,8 +690,8 @@ export default function HomePage() {
     setLocalPopularTreatments(prev => {
       const newLocalState = { ...prev }
       Object.keys(newLocalState).forEach(cityId => {
-        newLocalState[cityId] = newLocalState[cityId].map(treatment => 
-          treatment.id === treatmentId 
+        newLocalState[Number(cityId)] = newLocalState[Number(cityId)].map((treatment: any) => 
+          Number(treatment.id) === treatmentId 
             ? { ...treatment, is_liked: newState }
             : treatment
         )
@@ -843,7 +744,7 @@ export default function HomePage() {
           clinic.id === clinicId 
             ? { 
                 ...clinic, 
-                isLiked: data[0].is_liked
+                is_liked: data[0].is_liked
               }
             : clinic
         ))
@@ -994,7 +895,25 @@ export default function HomePage() {
                     className="w-[300px] flex-shrink-0"
                   >
                     <TreatmentCard 
-                      {...treatment} 
+                      id={Number(treatment.id)}
+                      thumbnail_url={treatment.image}
+                      title={treatment.title}
+                      summary={treatment.description}
+                      hospital_name={treatment.clinic}
+                      city_name={treatment.location}
+                      price={treatment.originalPrice}
+                      discount_rate={treatment.discountRate}
+                      rating={treatment.rating}
+                      comment_count={treatment.reviewCount}
+                      categories={(treatment.categories as unknown as Array<{ id: number; name: string; depth3_list?: { id: number; name: string; }[] }>).map((cat) => ({
+                        depth2_id: cat.id,
+                        depth2_name: cat.name,
+                        depth3_list: cat.depth3_list || []
+                      }))}
+                      is_liked={treatment.is_liked}
+                      discount_price={treatment.discountPrice || 0}
+                      is_advertised={treatment.isAd || false}
+                      is_recommended={treatment.isNew || false}
                       disableLink 
                       onLikeToggle={handleLikeToggle}
                     />
@@ -1011,7 +930,25 @@ export default function HomePage() {
                 href={`/treatments/detail?id=${treatment.id}`}
               >
                 <TreatmentCard 
-                  {...treatment} 
+                  id={Number(treatment.id)}
+                  thumbnail_url={treatment.image}
+                  title={treatment.title}
+                  summary={treatment.description}
+                  hospital_name={treatment.clinic}
+                  city_name={treatment.location}
+                  price={treatment.originalPrice}
+                  discount_rate={treatment.discountRate}
+                  rating={treatment.rating}
+                  comment_count={treatment.reviewCount}
+                  categories={(treatment.categories as unknown as Array<{ id: number; name: string; depth3_list?: { id: number; name: string; }[] }>).map((cat) => ({
+                    depth2_id: cat.id,
+                    depth2_name: cat.name,
+                    depth3_list: cat.depth3_list || []
+                  }))}
+                  is_liked={treatment.is_liked}
+                  discount_price={treatment.discountPrice || 0}
+                  is_advertised={treatment.isAd || false}
+                  is_recommended={treatment.isNew || false}
                   disableLink 
                   onLikeToggle={handleLikeToggle}
                 />
@@ -1079,7 +1016,25 @@ export default function HomePage() {
                         className="w-[300px] flex-shrink-0"
                       >
                         <TreatmentCard 
-                          {...treatment} 
+                          id={Number(treatment.id)}
+                          thumbnail_url={treatment.thumbnail_url}
+                          title={treatment.title}
+                          summary={treatment.summary}
+                          hospital_name={treatment.hospital_name}
+                          city_name={treatment.city_name}
+                          price={treatment.price}
+                          discount_rate={treatment.discount_rate}
+                          rating={treatment.rating}
+                          comment_count={treatment.comment_count}
+                          categories={(treatment.categories as unknown as Array<{ id: number; name: string; depth3_list?: { id: number; name: string; }[] }>).map((cat) => ({
+                            depth2_id: cat.id,
+                            depth2_name: cat.name,
+                            depth3_list: cat.depth3_list || []
+                          }))}
+                          is_liked={treatment.is_liked}
+                          discount_price={treatment.discount_price || 0}
+                          is_advertised={treatment.is_advertised || false}
+                          is_recommended={treatment.is_recommended || false}
                           disableLink 
                           onLikeToggle={handleLikeToggle}
                         />
@@ -1097,7 +1052,25 @@ export default function HomePage() {
                     href={`/treatments/detail?id=${treatment.id}`}
                   >
                     <TreatmentCard 
-                      {...treatment} 
+                      id={Number(treatment.id)}
+                      thumbnail_url={treatment.thumbnail_url}
+                      title={treatment.title}
+                      summary={treatment.summary}
+                      hospital_name={treatment.hospital_name}
+                      city_name={treatment.city_name}
+                      price={treatment.price}
+                      discount_rate={treatment.discount_rate}
+                      rating={treatment.rating}
+                      comment_count={treatment.comment_count}
+                      categories={(treatment.categories as unknown as Array<{ id: number; name: string; depth3_list?: { id: number; name: string; }[] }>).map((cat) => ({
+                        depth2_id: cat.id,
+                        depth2_name: cat.name,
+                        depth3_list: cat.depth3_list || []
+                      }))}
+                      is_liked={treatment.is_liked}
+                      discount_price={treatment.discount_price || 0}
+                      is_advertised={treatment.is_advertised || false}
+                      is_recommended={treatment.is_recommended || false}
                       disableLink 
                       onLikeToggle={handleLikeToggle}
                     />
@@ -1131,9 +1104,23 @@ export default function HomePage() {
                   className="w-[calc(50vw-2rem)] md:w-[300px] flex-shrink-0"
                 >
                   <ClinicCard 
-                    {...clinic} 
+                    id={clinic.id}
+                    title={clinic.title}
+                    description={clinic.description}
+                    image={clinic.image}
+                    location={clinic.location}
+                    reviewCount={clinic.viewCount}
+                    rating={clinic.rating}
+                    categories={clinic.categories.map(cat => ({
+                      id: cat.depth2_id,
+                      name: cat.depth2_name
+                    }))}
+                    isRecommended={clinic.is_recommended}
+                    isAd={clinic.isAd}
+                    isMember={clinic.isMember}
+                    isLiked={clinic.isLiked}
                     disableLink 
-                    onLikeToggle={handleClinicLikeToggle}  // 좋아요 핸들러 추가
+                    onLikeToggle={handleClinicLikeToggle}
                   />
                 </Link>
               ))}
@@ -1200,8 +1187,23 @@ export default function HomePage() {
                 {latestReviews.map((review) => (
                   <div key={review.id} className="w-[85vw] md:w-[600px] flex-shrink-0">
                     <ReviewCard 
-                      {...review} 
-                      initialIsAuthenticated={isAuthenticated}  // 초기 인증 상태 전달
+                      id={review.id}
+                      beforeImage={review.beforeImage}
+                      afterImage={review.afterImage}
+                      rating={review.rating}
+                      content={review.content}
+                      author={review.author_name}
+                      date={new Date(review.created_at).toLocaleDateString()}
+                      treatmentName={review.treatment_name}
+                      categories={review.categories}
+                      location={review.city_name}
+                      clinicName={review.hospital_name}
+                      commentCount={review.comment_count}
+                      viewCount={review.view_count}
+                      additionalImagesCount={0}
+                      likeCount={0}
+                      is_locked={review.is_locked}
+                      initialIsAuthenticated={isAuthenticated}
                     />
                   </div>
                 ))}
